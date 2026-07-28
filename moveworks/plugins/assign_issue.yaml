@@ -1,0 +1,44 @@
+# Moveworks Action Plugin – Assign Jira Issue
+#
+# Import this file into Moveworks Creator Studio under
+# Plugins > Action Plugins > Import Plugin.
+#
+# The bot will invoke this action when an employee says something like:
+#   "Assign OPS-42 to john.doe@company.com"
+#   "Reassign IT-100 to Alice"
+
+name: assign_jira_issue
+description: Assigns (or reassigns) a Jira issue to a specific user by email or Jira accountId.
+
+action:
+  http:
+    method: PUT
+    url: "{{JIRA_INTEGRATION_BASE_URL}}/jira/issue/{{issue_key}}/assign"
+    headers:
+      Content-Type: application/json
+      Authorization: "******"
+    body:
+      account_id: "{{account_id}}"
+      email: "{{email}}"
+
+input_schema:
+  type: object
+  required:
+    - issue_key
+  properties:
+    issue_key:
+      type: string
+      description: Jira issue key, e.g. OPS-42
+    account_id:
+      type: string
+      description: Jira accountId of the new assignee (preferred)
+    email:
+      type: string
+      description: Email address of the new assignee (used to look up accountId when account_id is not available)
+
+output_schema:
+  $ref: get_issue.yaml#/output_schema
+
+output_template: |
+  👤 **{{key}}** assigned to {{assignee}}.
+  🔗 {{url}}

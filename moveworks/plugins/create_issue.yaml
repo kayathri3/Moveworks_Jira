@@ -1,0 +1,79 @@
+# Moveworks Action Plugin – Create Jira Issue
+#
+# Import this file into Moveworks Creator Studio under
+# Plugins > Action Plugins > Import Plugin.
+#
+# The bot will invoke this action when an employee says something like:
+#   "Create a Jira bug in the OPS project"
+#   "Open a new high-priority task for me"
+#
+# Reference: https://developer.moveworks.com/creator-studio/actions/
+
+name: create_jira_issue
+description: Creates a new Jira issue on behalf of the employee.
+
+action:
+  http:
+    method: POST
+    url: "{{JIRA_INTEGRATION_BASE_URL}}/jira/issue"
+    headers:
+      Content-Type: application/json
+      Authorization: "******"
+    body:
+      project_key: "{{project_key}}"
+      summary: "{{summary}}"
+      issue_type: "{{issue_type}}"
+      description: "{{description}}"
+      priority: "{{priority}}"
+      assignee: "{{assignee_account_id}}"
+      labels: "{{labels}}"
+
+input_schema:
+  type: object
+  required:
+    - project_key
+    - summary
+    - issue_type
+  properties:
+    project_key:
+      type: string
+      description: Jira project key (e.g. OPS, IT, INFRA)
+    summary:
+      type: string
+      description: Short title of the issue
+    issue_type:
+      type: string
+      description: Issue type – Bug, Task, Story, etc.
+      default: Task
+    description:
+      type: string
+      description: Detailed description of the issue
+    priority:
+      type: string
+      description: Priority – Highest, High, Medium, Low, Lowest
+      default: Medium
+    assignee_account_id:
+      type: string
+      description: Jira accountId of the assignee (optional)
+    labels:
+      type: array
+      items:
+        type: string
+      description: List of labels to apply (optional)
+
+output_schema:
+  type: object
+  properties:
+    key:
+      type: string
+      description: The Jira issue key (e.g. OPS-42)
+    id:
+      type: string
+      description: Internal Jira issue ID
+    url:
+      type: string
+      description: Browser URL for the new issue
+
+output_template: |
+  ✅ Jira issue **{{key}}** created successfully.
+  🔗 {{url}}

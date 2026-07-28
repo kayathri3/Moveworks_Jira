@@ -1,0 +1,52 @@
+# Moveworks Action Plugin – Add Comment to Jira Issue
+#
+# Import this file into Moveworks Creator Studio under
+# Plugins > Action Plugins > Import Plugin.
+#
+# The bot will invoke this action when an employee says something like:
+#   "Add a comment to OPS-42 saying the server has been restarted"
+
+name: add_jira_comment
+description: Adds a comment to an existing Jira issue.
+
+action:
+  http:
+    method: POST
+    url: "{{JIRA_INTEGRATION_BASE_URL}}/jira/issue/{{issue_key}}/comment"
+    headers:
+      Content-Type: application/json
+      Authorization: "******"
+    body:
+      body: "{{comment_body}}"
+
+input_schema:
+  type: object
+  required:
+    - issue_key
+    - comment_body
+  properties:
+    issue_key:
+      type: string
+      description: Jira issue key, e.g. OPS-42
+    comment_body:
+      type: string
+      description: Text of the comment to add
+
+output_schema:
+  type: object
+  properties:
+    id:
+      type: string
+      description: Internal comment ID
+    author:
+      type: string
+      description: Display name of the comment author
+    created:
+      type: string
+      description: ISO-8601 timestamp when the comment was created
+    body:
+      type: string
+      description: The comment text that was added
+
+output_template: |
+  💬 Comment added to **{{issue_key}}** by {{author}}.
