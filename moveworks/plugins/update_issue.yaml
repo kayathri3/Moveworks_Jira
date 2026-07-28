@@ -1,0 +1,59 @@
+# Moveworks Action Plugin – Update Jira Issue
+#
+# Import this file into Moveworks Creator Studio under
+# Plugins > Action Plugins > Import Plugin.
+#
+# The bot will invoke this action when an employee says something like:
+#   "Update OPS-42 priority to High"
+#   "Change the summary of IT-55 to …"
+
+name: update_jira_issue
+description: Updates one or more fields (summary, description, priority, assignee, labels) on an existing Jira issue.
+
+action:
+  http:
+    method: PUT
+    url: "{{JIRA_INTEGRATION_BASE_URL}}/jira/issue/{{issue_key}}"
+    headers:
+      Content-Type: application/json
+      Authorization: "******"
+    body:
+      summary: "{{summary}}"
+      description: "{{description}}"
+      priority: "{{priority}}"
+      assignee: "{{assignee_account_id}}"
+      labels: "{{labels}}"
+
+input_schema:
+  type: object
+  required:
+    - issue_key
+  properties:
+    issue_key:
+      type: string
+      description: Jira issue key to update, e.g. OPS-42
+    summary:
+      type: string
+      description: New summary (optional)
+    description:
+      type: string
+      description: New description text (optional)
+    priority:
+      type: string
+      description: New priority – Highest, High, Medium, Low, Lowest (optional)
+    assignee_account_id:
+      type: string
+      description: Jira accountId of new assignee (optional)
+    labels:
+      type: array
+      items:
+        type: string
+      description: Replacement labels list (optional)
+
+output_schema:
+  $ref: get_issue.yaml#/output_schema
+
+output_template: |
+  ✏️ **{{key}}** updated successfully.
+  • Status: {{status}}  Priority: {{priority}}  Assignee: {{assignee}}
+  🔗 {{url}}

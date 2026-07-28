@@ -1,0 +1,44 @@
+# Moveworks Action Plugin – Transition Jira Issue
+#
+# Import this file into Moveworks Creator Studio under
+# Plugins > Action Plugins > Import Plugin.
+#
+# The bot will invoke this action when an employee says something like:
+#   "Move OPS-42 to In Progress"
+#   "Close ticket IT-100"
+
+name: transition_jira_issue
+description: Moves a Jira issue to a new workflow status (e.g. "In Progress", "Done", "Resolved").
+
+action:
+  http:
+    method: POST
+    url: "{{JIRA_INTEGRATION_BASE_URL}}/jira/issue/{{issue_key}}/transition"
+    headers:
+      Content-Type: application/json
+      Authorization: "******"
+    body:
+      transition_name: "{{transition_name}}"
+
+input_schema:
+  type: object
+  required:
+    - issue_key
+    - transition_name
+  properties:
+    issue_key:
+      type: string
+      description: Jira issue key, e.g. OPS-42
+    transition_name:
+      type: string
+      description: |
+        Name of the workflow transition to apply.
+        Common values: "To Do", "In Progress", "In Review", "Done", "Resolve Issue".
+        The available transitions depend on your Jira project workflow.
+
+output_schema:
+  $ref: get_issue.yaml#/output_schema
+
+output_template: |
+  🔄 **{{key}}** transitioned → **{{status}}**.
+  🔗 {{url}}

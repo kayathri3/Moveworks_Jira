@@ -1,0 +1,72 @@
+# Moveworks Action Plugin – Search Jira Issues
+#
+# Import this file into Moveworks Creator Studio under
+# Plugins > Action Plugins > Import Plugin.
+#
+# The bot will invoke this action when an employee says something like:
+#   "Find my open Jira tickets"
+#   "Search for bug tickets in OPS"
+
+name: search_jira_issues
+description: Searches for Jira issues using a keyword, assignee filter, or raw JQL expression.
+
+action:
+  http:
+    method: GET
+    url: "{{JIRA_INTEGRATION_BASE_URL}}/jira/issues/search"
+    headers:
+      Authorization: "******"
+    query_params:
+      jql: "{{jql}}"
+      keyword: "{{keyword}}"
+      assignee: "{{assignee}}"
+      max_results: "{{max_results}}"
+
+input_schema:
+  type: object
+  properties:
+    jql:
+      type: string
+      description: Raw JQL query (takes precedence when provided)
+    keyword:
+      type: string
+      description: Free-text keyword to search across all issue fields
+    assignee:
+      type: string
+      description: Assignee display name or accountId to filter by
+    max_results:
+      type: integer
+      description: Maximum results to return (1–50, default 10)
+      default: 10
+
+output_schema:
+  type: object
+  properties:
+    total:
+      type: integer
+      description: Total number of matching issues in Jira
+    issues:
+      type: array
+      items:
+        type: object
+        properties:
+          key:
+            type: string
+          summary:
+            type: string
+          status:
+            type: string
+          priority:
+            type: string
+          issue_type:
+            type: string
+          assignee:
+            type: string
+          url:
+            type: string
+
+output_template: |
+  🔍 Found **{{total}}** issue(s):
+  {{#each issues}}
+  • **{{key}}** – {{summary}} ({{status}} / {{priority}}) → {{url}}
+  {{/each}}
