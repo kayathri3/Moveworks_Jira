@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moveworks · Jira Allocation Request Enhancement</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Sora:wght@300;400;600;700&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --border: #1e2d45;
+    --accent-blue: #3b82f6;
+    --accent-cyan: #06b6d4;
+    --accent-green: #10b981;
+    --accent-purple: #8b5cf6;
+    --accent-orange: #f59e0b;
+    --accent-red: #ef4444;
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Sora', sans-serif; min-height: 100vh; padding: 2rem; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; z-index: 0; }
+  .wrapper { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; }
+
+  .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
+  .use-case-badge { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--accent-cyan); background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.3); padding: 3px 10px; border-radius: 999px; letter-spacing: 0.1em; text-transform: uppercase; display: inline-block; margin-bottom: 0.6rem; }
+  h1 { font-size: 1.7rem; font-weight: 700; color: #fff; line-height: 1.2; }
+  h1 span { color: var(--accent-blue); }
+  .subtitle { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.4rem; font-weight: 300; }
+  .meta-pills { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+  .pill { font-size: 0.7rem; font-family: 'JetBrains Mono', monospace; padding: 3px 10px; border-radius: 999px; border: 1px solid; }
+  .pill-blue   { color: var(--accent-blue);   border-color: rgba(59,130,246,0.3);  background: rgba(59,130,246,0.08); }
+  .pill-green  { color: var(--accent-green);  border-color: rgba(16,185,129,0.3);  background: rgba(16,185,129,0.08); }
+  .pill-purple { color: var(--accent-purple); border-color: rgba(139,92,246,0.3);  background: rgba(139,92,246,0.08); }
+  .pill-orange { color: var(--accent-orange); border-color: rgba(245,158,11,0.3);  background: rgba(245,158,11,0.08); }
+
+  .score-block { text-align: right; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 0.8rem 1.2rem; min-width: 130px; }
+  .score-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; font-family: 'JetBrains Mono', monospace; }
+  .score-row { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 0.4rem; }
+  .score-item { text-align: center; }
+  .score-val { font-size: 1.4rem; font-weight: 700; line-height: 1; }
+  .score-val.blue  { color: var(--accent-blue); }
+  .score-val.green { color: var(--accent-green); }
+  .score-sub { font-size: 0.6rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+
+  .layers-label { font-size: 0.65rem; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.8rem; }
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .layer { display: grid; grid-template-columns: 140px 1fr; gap: 1rem; align-items: start; margin-bottom: 0.5rem; }
+  .layer-label { padding-top: 1.2rem; text-align: right; padding-right: 1rem; }
+  .layer-name { font-size: 0.72rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; }
+  .layer-system { font-size: 0.6rem; color: var(--text-muted); margin-top: 2px; }
+  .layer-content { position: relative; }
+  .steps-row { display: flex; gap: 0; align-items: stretch; position: relative; }
+  .step { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem 0.85rem; position: relative; cursor: pointer; transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s; margin: 0 3px; }
+  .step:hover { border-color: var(--step-color, var(--accent-blue)); transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.4); }
+  .step-num { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: var(--text-muted); margin-bottom: 0.4rem; }
+  .step-title { font-size: 0.75rem; font-weight: 600; color: #fff; line-height: 1.3; margin-bottom: 0.3rem; }
+  .step-desc { font-size: 0.65rem; color: var(--text-dim); line-height: 1.5; }
+  .step-tag { display: inline-block; margin-top: 0.5rem; font-size: 0.58rem; font-family: 'JetBrains Mono', monospace; padding: 2px 7px; border-radius: 4px; border: 1px solid; }
+  .step-icon-bg { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; border: 1px solid; font-size: 1rem; margin-bottom: 0.5rem; }
+
+  .layer-teams   .step { --step-color: #5865f2; }
+  .layer-mw      .step { --step-color: var(--accent-blue); }
+  .layer-proj    .step { --step-color: var(--accent-purple); }
+  .layer-logic   .step { --step-color: var(--accent-orange); }
+  .layer-jira    .step { --step-color: var(--accent-green); }
+  .layer-confirm .step { --step-color: var(--accent-cyan); }
+  .layer-teams   .step-icon-bg { background: rgba(88,101,242,0.12);  border-color: rgba(88,101,242,0.25);  color: #5865f2; }
+  .layer-mw      .step-icon-bg { background: rgba(59,130,246,0.12);  border-color: rgba(59,130,246,0.25);  color: var(--accent-blue); }
+  .layer-proj    .step-icon-bg { background: rgba(139,92,246,0.12);  border-color: rgba(139,92,246,0.25);  color: var(--accent-purple); }
+  .layer-logic   .step-icon-bg { background: rgba(245,158,11,0.12);  border-color: rgba(245,158,11,0.25);  color: var(--accent-orange); }
+  .layer-jira    .step-icon-bg { background: rgba(16,185,129,0.12);  border-color: rgba(16,185,129,0.25);  color: var(--accent-green); }
+  .layer-confirm .step-icon-bg { background: rgba(6,182,212,0.12);   border-color: rgba(6,182,212,0.25);   color: var(--accent-cyan); }
+
+  .big-arrow { display: grid; grid-template-columns: 140px 1fr; gap: 1rem; margin: 0.2rem 0; }
+  .big-arrow-body { display: flex; flex-direction: column; align-items: flex-start; padding: 0 20px; gap: 2px; }
+  .arrow-segment { display: flex; align-items: center; gap: 6px; font-size: 0.6rem; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); }
+  .arrow-vert { width: 1px; height: 14px; background: var(--ac2, rgba(59,130,246,0.3)); margin-left: 6px; }
+
+  .decision-row { display: grid; grid-template-columns: 140px 1fr; gap: 1rem; align-items: center; margin-bottom: 0.5rem; }
+  .decision-body { display: flex; align-items: center; gap: 1rem; padding: 0 3px; }
+  .diamond { width: 80px; height: 50px; background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05)); border: 1.5px solid var(--accent-orange); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.62rem; font-weight: 600; color: var(--accent-orange); text-align: center; font-family: 'JetBrains Mono', monospace; flex-shrink: 0; position: relative; }
+  .diamond::before { content: '◆'; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); font-size: 0.7rem; color: var(--accent-orange); opacity: 0.6; }
+  .branch { flex: 1; display: flex; gap: 1rem; }
+  .branch-item { flex: 1; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px dashed; font-size: 0.65rem; line-height: 1.4; }
+  .branch-yes { border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.06); color: var(--accent-green); }
+  .branch-no  { border-color: rgba(239,68,68,0.4);  background: rgba(239,68,68,0.06);  color: #f87171; }
+  .branch-label { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 0.6rem; display: block; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .step[data-tip]:hover::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: #1e293b; border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 0.62rem; color: var(--text-dim); white-space: nowrap; z-index: 100; pointer-events: none; box-shadow: 0 4px 20px rgba(0,0,0,0.5); font-family: 'JetBrains Mono', monospace; line-height: 1.5; }
+
+  .section-break { margin: 1.5rem 0 1rem; display: flex; align-items: center; gap: 0.8rem; }
+  .section-break-line { flex: 1; height: 1px; background: var(--border); }
+  .section-break-text { font-size: 0.62rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.1em; white-space: nowrap; }
+
+  .outcome-section { margin-top: 1.5rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .outcome-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; border-top: 3px solid; }
+  .outcome-card.deflect  { border-top-color: var(--accent-green); }
+  .outcome-card.speed    { border-top-color: var(--accent-blue); }
+  .outcome-card.accuracy { border-top-color: var(--accent-purple); }
+  .outcome-metric { font-size: 1.8rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; line-height: 1; }
+  .outcome-card.deflect  .outcome-metric { color: var(--accent-green); }
+  .outcome-card.speed    .outcome-metric { color: var(--accent-blue); }
+  .outcome-card.accuracy .outcome-metric { color: var(--accent-purple); }
+  .outcome-title { font-size: 0.8rem; font-weight: 600; margin: 0.4rem 0 0.3rem; }
+  .outcome-desc  { font-size: 0.65rem; color: var(--text-muted); line-height: 1.5; }
+
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.4)} }
+  .live-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent-green); animation: pulse 2s infinite; vertical-align: middle; margin-right: 5px; }
+
+  .parallel-wrap { display: flex; gap: 3px; }
+  .parallel-source { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 0.7rem; margin: 0 3px; position: relative; cursor: pointer; transition: border-color 0.2s, transform 0.15s; }
+  .parallel-source:hover { transform: translateY(-2px); border-color: var(--ps-color, var(--accent-blue)); box-shadow: 0 6px 24px rgba(0,0,0,0.4); }
+  .ps-label { font-size: 0.58rem; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+  .ps-name  { font-size: 0.72rem; font-weight: 600; color: #fff; margin-bottom: 3px; }
+  .ps-desc  { font-size: 0.6rem; color: var(--text-dim); line-height: 1.4; }
+  .ps-tag { display: inline-block; margin-top: 0.4rem; font-size: 0.55rem; font-family: 'JetBrains Mono', monospace; padding: 2px 6px; border-radius: 4px; border: 1px solid; }
+
+  .compare-section { margin-top: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .compare-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; }
+  .compare-card h3 { font-size: 0.8rem; margin-bottom: 0.6rem; }
+  .compare-card ul { list-style: none; padding: 0; }
+  .compare-card li { font-size: 0.65rem; color: var(--text-dim); line-height: 1.8; padding-left: 1.2rem; position: relative; }
+  .compare-card li::before { position: absolute; left: 0; }
+  .compare-before li::before { content: '✗'; color: var(--accent-red); }
+  .compare-after li::before { content: '✓'; color: var(--accent-green); }
+  .compare-before { border-top: 3px solid var(--accent-red); }
+  .compare-before h3 { color: var(--accent-red); }
+  .compare-after { border-top: 3px solid var(--accent-green); }
+  .compare-after h3 { color: var(--accent-green); }
+
+  @media (max-width: 700px) { .steps-row { flex-direction: column; } .parallel-wrap { flex-direction: column; } .header { flex-direction: column; gap: 1rem; } .outcome-section { grid-template-columns: 1fr; } .compare-section { grid-template-columns: 1fr; } .layer { grid-template-columns: 80px 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="header">
+    <div class="header-left">
+      <div class="use-case-badge">UC · Resource Management</div>
+      <h1>Jira Allocation Request <span>Enhanced with Projector Auto-Fetch</span></h1>
+      <div class="subtitle">MS Teams → Moveworks → Projector PSA → Auto-Fill → Jira Ticket Creation · End-to-End Flow</div>
+      <div class="meta-pills">
+        <span class="pill pill-blue">Microsoft Teams</span>
+        <span class="pill pill-blue">Moveworks AI</span>
+        <span class="pill pill-purple">Projector PSA</span>
+        <span class="pill pill-green">Jira</span>
+        <span class="pill pill-orange">Auto-Calculation</span>
+      </div>
+    </div>
+    <div class="score-block">
+      <div class="score-label">Impact Scores</div>
+      <div class="score-row">
+        <div class="score-item"><div class="score-val blue">3</div><div class="score-sub">Complexity</div></div>
+        <div class="score-item"><div class="score-val green">5</div><div class="score-sub">Value</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="layers-label"><span class="live-dot"></span> Enhanced Allocation Request Flow · Hover steps for details</div>
+  <div class="flow">
+
+    <!-- LAYER 1: Teams -->
+    <div class="layer layer-teams">
+      <div class="layer-label">
+        <div class="layer-name" style="color:#5865f2">MS Teams</div>
+        <div class="layer-system">PM Layer</div>
+      </div>
+      <div class="layer-content">
+        <div class="steps-row">
+          <div class="step" data-tip="Project Manager starts the request using natural language in Teams">
+            <div class="step-icon-bg">💬</div>
+            <div class="step-num">01</div>
+            <div class="step-title">PM Requests Allocation</div>
+            <div class="step-desc">"I need to create a new allocation for John Doe, 40 hours per week starting next Monday" — typed naturally in Teams chat</div>
+            <span class="step-tag" style="border-color:rgba(88,101,242,0.4);color:#818cf8">Natural Language</span>
+          </div>
+          <div class="step" data-tip="Moveworks identifies this as an allocation request and begins the flow">
+            <div class="step-icon-bg">🤖</div>
+            <div class="step-num">02</div>
+            <div class="step-title">Request Identified</div>
+            <div class="step-desc">Moveworks recognizes the intent as an allocation request, identifies the type (New / Extension / Removal), and begins gathering details</div>
+            <span class="step-tag" style="border-color:rgba(88,101,242,0.4);color:#818cf8">Intent Detection</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="big-arrow"><div></div><div class="big-arrow-body"><div class="arrow-vert" style="--ac2:rgba(139,92,246,0.4)"></div><div class="arrow-segment" style="color:rgba(139,92,246,0.6)">↓ Auto-fetch project data from Projector — no manual input needed</div><div class="arrow-vert" style="--ac2:rgba(139,92,246,0.4)"></div></div></div>
+
+    <!-- LAYER 2: Projector PSA -->
+    <div class="layer layer-proj">
+      <div class="layer-label">
+        <div class="layer-name" style="color:var(--accent-purple)">Projector</div>
+        <div class="layer-system">Data Fetch Layer</div>
+      </div>
+      <div class="layer-content">
+        <div class="steps-row">
+          <div class="step" data-tip="Fetches all projects where the logged-in user is the Project Manager">
+            <div class="step-icon-bg">📋</div>
+            <div class="step-num">03</div>
+            <div class="step-title">Fetch PM's Projects</div>
+            <div class="step-desc">Calls Projector PSA API to retrieve all active projects where the logged-in user is the Project Manager — returns project names, end dates, and client info</div>
+            <span class="step-tag" style="border-color:rgba(139,92,246,0.4);color:var(--accent-purple)">API Auto-Fetch</span>
+          </div>
+          <div class="step" data-tip="SFDC code and end date are pulled automatically from the project record">
+            <div class="step-icon-bg">🔗</div>
+            <div class="step-num">04</div>
+            <div class="step-title">Get SFDC Code & End Date</div>
+            <div class="step-desc">Automatically retrieves the SFDC Opportunity Code and project end date from the selected project — eliminating manual lookup and copy-paste errors</div>
+            <span class="step-tag" style="border-color:rgba(139,92,246,0.4);color:var(--accent-purple)">Zero Manual Lookup</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DECISION: Projects found? -->
+    <div class="decision-row">
+      <div class="layer-label">
+        <div class="layer-name" style="color:var(--accent-orange)">Decision</div>
+        <div class="layer-system">Project Match</div>
+      </div>
+      <div class="decision-body">
+        <div class="diamond">Projects<br>Found?</div>
+        <div class="branch">
+          <div class="branch-item branch-yes">
+            <span class="branch-label">✓ Projects Found</span>
+            If PM has one project → auto-select it. If multiple → show list for PM to pick. Project name, SFDC code, and end date are auto-filled.
+          </div>
+          <div class="branch-item branch-no">
+            <span class="branch-label">✗ Not a PM</span>
+            User is not a Project Manager in Projector → ask them to provide the project name manually, then fetch SFDC code and end date.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="big-arrow"><div></div><div class="big-arrow-body"><div class="arrow-vert" style="--ac2:rgba(59,130,246,0.4)"></div><div class="arrow-segment" style="color:rgba(59,130,246,0.6)">↓ Only ask what can't be auto-fetched — minimal PM input</div><div class="arrow-vert" style="--ac2:rgba(59,130,246,0.4)"></div></div></div>
+
+    <!-- LAYER 3: Moveworks Smart Collection -->
+    <div class="layer layer-mw">
+      <div class="layer-label">
+        <div class="layer-name" style="color:var(--accent-blue)">Moveworks</div>
+        <div class="layer-system">Smart Collection</div>
+      </div>
+      <div class="layer-content">
+        <div class="steps-row">
+          <div class="step" data-tip="Only asks for details that can't be auto-fetched from Projector">
+            <div class="step-icon-bg">📝</div>
+            <div class="step-num">05</div>
+            <div class="step-title">Collect Remaining Details</div>
+            <div class="step-desc">Asks PM only for: allocation type (New/Extension/Removal), resource names, hours per week, rate per hour, start date, end date, and region</div>
+            <span class="step-tag" style="border-color:rgba(59,130,246,0.4);color:var(--accent-blue)">Minimal Questions</span>
+          </div>
+          <div class="step" data-tip="Understands natural language dates like 'next week' or 'coming Monday'">
+            <div class="step-icon-bg">📅</div>
+            <div class="step-num">06</div>
+            <div class="step-title">Smart Date Parsing</div>
+            <div class="step-desc">When PM says "starting next week" or "from coming Monday" — automatically converts to YYYY-MM-DD format without asking for clarification</div>
+            <span class="step-tag" style="border-color:rgba(59,130,246,0.4);color:var(--accent-blue)">Date Intelligence</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="big-arrow"><div></div><div class="big-arrow-body"><div class="arrow-vert" style="--ac2:rgba(245,158,11,0.4)"></div><div class="arrow-segment" style="color:rgba(245,158,11,0.6)">↓ Priority and summary calculated automatically — never asked</div><div class="arrow-vert" style="--ac2:rgba(245,158,11,0.4)"></div></div></div>
+
+    <!-- LAYER 4: Auto-Calculation -->
+    <div class="layer layer-logic">
+      <div class="layer-label">
+        <div class="layer-name" style="color:var(--accent-orange)">Auto-Calc</div>
+        <div class="layer-system">Logic Layer</div>
+      </div>
+      <div class="layer-content">
+        <div class="parallel-wrap">
+          <div class="parallel-source" style="--ps-color:var(--accent-orange)" data-tip="Priority is set based on how soon the allocation starts">
+            <div class="step-icon-bg" style="background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.25);color:var(--accent-orange)">⚡</div>
+            <div class="ps-label">Step 07 · Auto</div>
+            <div class="ps-name">Priority Auto-Set</div>
+            <div class="ps-desc">Within 1 week → Critical. Within 2 weeks → High. Within 1 month → Medium. Further out → Low. Never asked to the PM.</div>
+            <span class="ps-tag" style="border-color:rgba(245,158,11,0.4);color:var(--accent-orange)">Date-Based Logic</span>
+          </div>
+          <div class="parallel-source" style="--ps-color:var(--accent-orange)" data-tip="A one-line summary is generated from the collected data">
+            <div class="step-icon-bg" style="background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.25);color:var(--accent-orange)">📄</div>
+            <div class="ps-label">Step 08 · Auto</div>
+            <div class="ps-name">Summary Auto-Generated</div>
+            <div class="ps-desc">"New allocation for John Doe, 40 hrs/week from 2026-08-25 to 2026-10-31 for ClientX" — built from data, never asked.</div>
+            <span class="ps-tag" style="border-color:rgba(245,158,11,0.4);color:var(--accent-orange)">Zero Manual Input</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="big-arrow"><div></div><div class="big-arrow-body"><div class="arrow-vert" style="--ac2:rgba(16,185,129,0.4)"></div><div class="arrow-segment" style="color:rgba(16,185,129,0.6)">↓ All fields populated — Jira ticket created automatically</div><div class="arrow-vert" style="--ac2:rgba(16,185,129,0.4)"></div></div></div>
+
+    <!-- LAYER 5: Jira -->
+    <div class="layer layer-jira">
+      <div class="layer-label">
+        <div class="layer-name" style="color:var(--accent-green)">Jira</div>
+        <div class="layer-system">Ticket Creation</div>
+      </div>
+      <div class="layer-content">
+        <div class="steps-row">
+          <div class="step" data-tip="PM reviews all details before the ticket is created">
+            <div class="step-icon-bg">✅</div>
+            <div class="step-num">09</div>
+            <div class="step-title">Confirm & Review</div>
+            <div class="step-desc">Moveworks shows a complete summary with all auto-fetched and collected fields — PM confirms or edits before submission</div>
+            <span class="step-tag" style="border-color:rgba(16,185,129,0.4);color:var(--accent-green)">One-Click Confirm</span>
+          </div>
+          <div class="step" data-tip="Jira allocation ticket is created with all mandatory fields filled">
+            <div class="step-icon-bg">🎫</div>
+            <div class="step-num">10</div>
+            <div class="step-title">Jira Ticket Created</div>
+            <div class="step-desc">Allocation request ticket created in Jira with: project name, SFDC code, allocation details, region, priority, due date, and summary — all fields complete</div>
+            <span class="step-tag" style="border-color:rgba(16,185,129,0.4);color:var(--accent-green)">Full Auto-Fill</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="big-arrow"><div></div><div class="big-arrow-body"><div class="arrow-vert" style="--ac2:rgba(6,182,212,0.4)"></div><div class="arrow-segment" style="color:rgba(6,182,212,0.6)">↓ PM gets instant confirmation with ticket details</div><div class="arrow-vert" style="--ac2:rgba(6,182,212,0.4)"></div></div></div>
+
+    <!-- LAYER 6: Confirmation -->
+    <div class="layer layer-confirm">
+      <div class="layer-label">
+        <div class="layer-name" style="color:var(--accent-cyan)">Resolution</div>
+        <div class="layer-system">Confirmation</div>
+      </div>
+      <div class="layer-content">
+        <div class="steps-row">
+          <div class="step" data-tip="PM gets the Jira ticket link and full details right in Teams">
+            <div class="step-icon-bg">💬</div>
+            <div class="step-num">11</div>
+            <div class="step-title">Confirmation in Teams</div>
+            <div class="step-desc">PM receives confirmation with the Jira ticket number, link, and a summary of the allocation request — all within the same Teams conversation</div>
+            <span class="step-tag" style="border-color:rgba(6,182,212,0.4);color:var(--accent-cyan)">Instant Feedback</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Before vs After -->
+  <div class="section-break"><div class="section-break-line"></div><div class="section-break-text">Before vs After Enhancement</div><div class="section-break-line"></div></div>
+  <div class="compare-section">
+    <div class="compare-card compare-before">
+      <h3>Before (Current Flow)</h3>
+      <ul>
+        <li>PM manually enters project name</li>
+        <li>PM looks up SFDC code from Projector</li>
+        <li>PM types project end date manually</li>
+        <li>PM selects priority manually</li>
+        <li>PM writes ticket summary manually</li>
+        <li>7+ questions asked in conversation</li>
+        <li>Error-prone: wrong SFDC codes, typos</li>
+      </ul>
+    </div>
+    <div class="compare-card compare-after">
+      <h3>After (Enhanced Flow)</h3>
+      <ul>
+        <li>Project name auto-fetched from Projector</li>
+        <li>SFDC code auto-fetched from project record</li>
+        <li>End date auto-fetched from Projector</li>
+        <li>Priority auto-calculated from start date</li>
+        <li>Summary auto-generated from data</li>
+        <li>Only 3-4 questions asked (type, resources, dates, region)</li>
+        <li>Accurate: data comes directly from source systems</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Business Outcomes -->
+  <div class="section-break"><div class="section-break-line"></div><div class="section-break-text">Business Outcomes</div><div class="section-break-line"></div></div>
+  <div class="outcome-section">
+    <div class="outcome-card deflect">
+      <div class="outcome-metric">~60%</div>
+      <div class="outcome-title">Fewer Questions Asked</div>
+      <div class="outcome-desc">3 fields auto-fetched from Projector + 2 auto-calculated — reducing PM input from 7+ questions to just 3-4 essential ones.</div>
+    </div>
+    <div class="outcome-card speed">
+      <div class="outcome-metric">&lt;2min</div>
+      <div class="outcome-title">End-to-End Time</div>
+      <div class="outcome-desc">Complete allocation request from chat to Jira ticket in under 2 minutes — vs. 5+ minutes with manual data entry and SFDC code lookup.</div>
+    </div>
+    <div class="outcome-card accuracy">
+      <div class="outcome-metric">100%</div>
+      <div class="outcome-title">Data Accuracy</div>
+      <div class="outcome-desc">Project name, SFDC code, and end date come directly from Projector — eliminating copy-paste errors and outdated information.</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

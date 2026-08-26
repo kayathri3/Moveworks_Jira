@@ -1,0 +1,98 @@
+# Testing Projector OAuth2 in Postman
+
+## Step-by-Step Guide
+
+### Step 1: Open Postman and Create a New Request
+
+1. Open Postman
+2. Click **New** → **HTTP Request**
+3. Set method to **GET**
+4. Set URL to: `https://app4.projectorpsa.com/api/v1/projects`
+
+---
+
+### Step 2: Configure OAuth 2.0 Authorization
+
+1. Click the **Authorization** tab (below the URL bar)
+2. From the **Auth Type** dropdown, select **OAuth 2.0**
+3. On the right side, fill in these fields:
+
+| Field | Value |
+|-------|-------|
+| **Token Name** | `Projector_Token` |
+| **Grant Type** | `Authorization Code` |
+| **Callback URL** | `https://oauth.pstmn.io/v1/callback` (Postman's built-in callback) |
+| **Auth URL** | `https://app4.projectorpsa.com/oauth2authorize/Cprime-sandbox` |
+| **Access Token URL** | `https://app4.projectorpsa.com/oauth2token` |
+| **Client ID** | `7d119b5b-48c4-f3c3-da69-b2bc35f423b3` |
+| **Client Secret** | (your client secret from .env) |
+| **Scope** | `allowFullPermissions` |
+
+4. **IMPORTANT**: Scroll down and find **"Advanced Options"** or **"Token Request"** section
+5. Look for a field that lets you customize the grant_type body parameter
+   - If available, change it from `authorization_code` to `code`
+   - If NOT available, we'll handle this differently (see Step 2B below)
+
+---
+
+### Step 2B: If Postman doesn't support custom grant_type
+
+Since Postman sends `grant_type=authorization_code` by default and Projector needs `grant_type=code`, you may need to get the token manually:
+
+1. Create a **new POST request** in Postman:
+   - URL: `https://app4.projectorpsa.com/oauth2token`
+   - Go to **Body** tab → select **x-www-form-urlencoded**
+   - Add these key-value pairs:
+
+| Key | Value |
+|-----|-------|
+| `grant_type` | `code` |
+| `code` | (paste fresh auth code here - see Step 3) |
+| `client_id` | `7d119b5b-48c4-f3c3-da69-b2bc35f423b3` |
+| `client_secret` | (your secret) |
+| `redirect_uri` | `https://oauth.pstmn.io/v1/callback` |
+
+2. But first you need the auth code — see Step 3
+
+---
+
+### Step 3: Get a Fresh Auth Code (for manual approach)
+
+**IMPORTANT**: First, register Postman's callback URL in the Projector OAuth app.
+Ask IT to add: `https://oauth.pstmn.io/v1/callback`
+
+If they can't add it, use this workaround:
+
+1. Open this URL in browser:
+```
+https://app4.projectorpsa.com/oauth2authorize/Cprime-sandbox?response_type=code&client_id=7d119b5b-48c4-f3c3-da69-b2bc35f423b3&redirect_uri=https%3A%2F%2Fcprime.moveworks.com%2Fauth%2FoauthCallback&scope=allowFullPermissions
+```
+2. Log in and Authorize
+3. Copy the `code` from the callback URL (it will show "Callback Failed" but the code is in the URL)
+4. IMMEDIATELY go to Postman and send the POST request from Step 2B with that code
+
+---
+
+### Step 4: If Token Exchange Succeeds
+
+If you get a 200 response with an access_token, then:
+- The OAuth flow WORKS — the issue is only on Moveworks' side
+- Copy the `access_token` from the response
+
+Then test the API:
+1. Create a new GET request: `https://app4.projectorpsa.com/api/v1/projects`
+2. In **Authorization** tab → select **Bearer Token**
+3. Paste the access_token
+4. Click **Send**
+
+---
+
+### What This Tells You
+
+| Postman Result | Meaning |
+|---|---|
+| Token exchange returns 200 + access_token | OAuth works, problem is Moveworks only |
+| Token exchange returns 400 "unsupported grant_type" | grant_type issue (try `code` instead) |
+| Token exchange returns 400 "code expired" | You were too slow, try again faster |
+| API call returns 200 with data | Everything works! Moveworks is the only blocker |
+| API call returns 302/redirect | REST endpoint might not exist, need SOAP |
