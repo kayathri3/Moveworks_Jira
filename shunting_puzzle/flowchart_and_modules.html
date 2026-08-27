@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Master Flowchart &amp; Module Definitions — 2S Train Shunting Puzzle</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f5f5; padding: 20px; color: #222; }
+
+  .page { background: #fff; max-width: 1200px; margin: 0 auto 30px; padding: 30px; border: 1px solid #ccc; box-shadow: 0 2px 8px rgba(0,0,0,0.1); page-break-after: always; }
+
+  /* Header bars */
+  .header-bar { background: #1a237e; color: #fff; font-weight: bold; font-size: 18px; text-align: center; padding: 10px; margin-bottom: 20px; border-radius: 4px; }
+  .header-bar.red { background: #b71c1c; }
+  .header-bar.green { background: #2e7d32; }
+  .header-bar.orange { background: #e65100; }
+
+  /* Module boxes */
+  .module-box { border: 2px solid #333; border-radius: 6px; margin: 15px 0; padding: 15px; background: #fffde7; }
+  .module-box.blue { background: #e3f2fd; border-color: #1565c0; }
+  .module-box.green { background: #e8f5e9; border-color: #2e7d32; }
+  .module-box.red { background: #fce4ec; border-color: #c62828; }
+  .module-box.yellow { background: #fffde7; border-color: #f9a825; }
+  .module-box.orange { background: #fff3e0; border-color: #e65100; }
+
+  .module-title { display: flex; align-items: center; margin-bottom: 10px; }
+  .module-num { background: #1a237e; color: #fff; font-weight: bold; font-size: 16px; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 10px; flex-shrink: 0; }
+  .module-num.red { background: #c62828; }
+  .module-name { font-weight: bold; font-size: 16px; text-transform: uppercase; }
+
+  /* Flowchart elements */
+  .flow-container { display: flex; flex-direction: column; align-items: center; gap: 0; }
+  .flow-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
+
+  .start-end { background: #ef9a9a; border: 2px solid #c62828; border-radius: 30px; padding: 8px 25px; font-weight: bold; text-align: center; min-width: 120px; }
+  .process { background: #c8e6c9; border: 2px solid #2e7d32; padding: 8px 15px; font-weight: bold; text-align: center; min-width: 180px; }
+  .decision { background: #fff9c4; border: 2px solid #f9a825; padding: 10px; font-weight: bold; text-align: center; transform: rotate(0deg); min-width: 180px; clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); min-height: 90px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  .reject { background: #ffcdd2; border: 2px solid #c62828; padding: 8px 15px; font-weight: bold; text-align: center; }
+
+  .arrow-down { width: 2px; height: 25px; background: #333; position: relative; margin: 0 auto; }
+  .arrow-down::after { content: '▼'; position: absolute; bottom: -8px; left: -5px; font-size: 10px; }
+
+  .arrow-right { height: 2px; width: 40px; background: #333; position: relative; }
+  .arrow-right::after { content: '►'; position: absolute; right: -8px; top: -6px; font-size: 10px; }
+
+  .label-yes { color: #2e7d32; font-weight: bold; font-size: 13px; }
+  .label-no { color: #c62828; font-weight: bold; font-size: 13px; }
+
+  /* Two-column layout */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+
+  /* Box list */
+  .box-list { border: 2px solid #333; border-radius: 6px; overflow: hidden; }
+  .box-list-header { background: #1a237e; color: #fff; font-weight: bold; text-align: center; padding: 8px; }
+  .box-list-item { display: flex; align-items: center; padding: 6px 10px; border-bottom: 1px solid #ddd; }
+  .box-list-item:last-child { border-bottom: none; }
+
+  /* Legend */
+  .legend { border: 2px solid #333; border-radius: 6px; padding: 15px; margin-top: 15px; }
+  .legend-title { background: #f9a825; font-weight: bold; text-align: center; padding: 6px; margin: -15px -15px 10px; border-radius: 4px 4px 0 0; }
+  .legend-item { display: flex; align-items: center; gap: 10px; margin: 8px 0; font-size: 13px; }
+  .legend-shape { width: 40px; height: 25px; flex-shrink: 0; }
+  .legend-shape.start { background: #ef9a9a; border: 2px solid #c62828; border-radius: 15px; }
+  .legend-shape.proc { background: #c8e6c9; border: 2px solid #2e7d32; }
+  .legend-shape.dec { background: #fff9c4; border: 2px solid #f9a825; clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); width: 40px; height: 30px; }
+
+  /* Detail tables */
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  th { background: #e0e0e0; padding: 6px 8px; border: 1px solid #999; text-align: left; }
+  td { padding: 6px 8px; border: 1px solid #ccc; }
+  ul { padding-left: 20px; margin: 5px 0; }
+  li { margin: 3px 0; font-size: 13px; }
+  .highlight { background: #fff9c4; font-weight: bold; }
+
+  /* Flow diagram (text-based) */
+  .flow-text { font-family: 'Consolas', monospace; font-size: 13px; background: #fafafa; border: 1px solid #ddd; padding: 15px; border-radius: 4px; white-space: pre; line-height: 1.5; overflow-x: auto; }
+
+  .section-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+
+  hr { border: none; border-top: 2px solid #e0e0e0; margin: 20px 0; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- PAGE 1: MASTER FLOWCHART + BOX LIST + LEGEND                  -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="two-col" style="grid-template-columns: 2fr 1fr;">
+
+    <!-- LEFT: Master Flowchart -->
+    <div>
+      <div class="header-bar">MASTER FLOWCHART — TRAIN SHUNTING PUZZLE (2S)</div>
+
+      <div class="flow-text">
+                        ┌─────────┐
+                        │  START  │  (rounded = start/end)
+                        └────┬────┘
+                             │
+                    ┌────────▼────────┐
+               ①   │ INITIALIZATION  │
+                    └────────┬────────┘
+                             │
+                ┌────────────▼────────────┐
+           ②   │   TERMINATION CHECK     │
+                └────────────┬────────────┘
+                             │
+                    ◇ Final state ◇
+                   ╱  satisfied?   ╲
+                  ╱                 ╲
+           YES  ╱                    ╲  NO
+               ╱                      ╲
+    ┌─────────▼──────────┐    ┌───────▼────────────────┐
+⑩  │ FINAL VALIDATION   │  ③ │ SELECT NEXT LEGAL      │
+    └─────────┬──────────┘    │ ACTION                 │
+              │               └───────┬────────────────┘
+     ◇ All constraints ◇             │
+    ╱  and config OK?   ╲   ┌────────▼────────┐
+   ╱                     ╲ ④│ DEADLOCK CHECK  │
+  YES                  NO  └────────┬────────┘
+   │                    │           │
+   ▼                    │  ◇ Deadlock detected? ◇
+┌─────┐           ┌────▼───┐  ╱                ╲
+│ END │           │BACK TO ③│ YES              NO
+└─────┘           └────────┘  │                 │
+                    ┌─────────▼───┐    ┌────────▼────────┐
+                    │REJECT ACTION│  ⑤ │VALIDATE CAPACITY│
+                    │→ back to ③  │    └────────┬────────┘
+                    └─────────────┘             │
+                                       ◇ Capacity valid? ◇
+                                      ╱                   ╲
+                                   YES                    NO
+                                    │               ┌──────▼──────┐
+                           ┌────────▼────────┐      │REJECT ACTION│
+                      ⑥   │ COUPLE/DECOUPLE │      │→ back to ③  │
+                           └────────┬────────┘      └─────────────┘
+                                    │
+                           ┌────────▼────────┐
+                      ⑦   │  MOVE ENGINE    │
+                           └────────┬────────┘
+                                    │
+                           ┌────────▼────────┐
+                      ⑧   │  STATE UPDATE   │
+                           └────────┬────────┘
+                                    │
+                           ┌────────▼────────────┐
+                      ⑨   │UPDATE REVERSAL COUNT│
+                           └────────┬────────────┘
+                                    │
+                                    └──── → back to ② TERMINATION CHECK
+      </div>
+    </div>
+
+    <!-- RIGHT: Box List + Legend -->
+    <div>
+      <div class="box-list">
+        <div class="box-list-header">FLOWCHART BOX LIST</div>
+        <div class="box-list-item"><span class="module-num">1</span> INITIALIZATION</div>
+        <div class="box-list-item"><span class="module-num">2</span> TERMINATION CHECK</div>
+        <div class="box-list-item"><span class="module-num">3</span> SELECT NEXT LEGAL ACTION</div>
+        <div class="box-list-item"><span class="module-num">4</span> DEADLOCK CHECK</div>
+        <div class="box-list-item"><span class="module-num">5</span> VALIDATE CAPACITY</div>
+        <div class="box-list-item"><span class="module-num">6</span> COUPLE / DECOUPLE</div>
+        <div class="box-list-item"><span class="module-num">7</span> MOVE ENGINE</div>
+        <div class="box-list-item"><span class="module-num">8</span> STATE UPDATE</div>
+        <div class="box-list-item"><span class="module-num">9</span> UPDATE REVERSAL COUNT</div>
+        <div class="box-list-item"><span class="module-num red">10</span> FINAL VALIDATION</div>
+      </div>
+
+      <div class="legend">
+        <div class="legend-title">LEGEND</div>
+        <div class="legend-item"><div class="legend-shape start"></div> Start / End</div>
+        <div class="legend-item"><div class="legend-shape proc"></div> Process / Module</div>
+        <div class="legend-item"><div class="legend-shape dec"></div> Decision</div>
+        <div class="legend-item"><span style="color:#2e7d32;font-weight:bold;width:40px;text-align:center;display:inline-block;">YES</span> Yes Flow</div>
+        <div class="legend-item"><span style="color:#c62828;font-weight:bold;width:40px;text-align:center;display:inline-block;">NO</span> No Flow</div>
+        <div class="legend-item"><span style="font-size:16px;width:40px;text-align:center;display:inline-block;">→</span> Flow Direction</div>
+      </div>
+
+      <div class="module-box blue" style="margin-top:15px;">
+        <b>OUR PUZZLE SPECIFICS:</b>
+        <ul>
+          <li>Tracks: A, B, C (triangle) + D (siding)</li>
+          <li>Initial: A=EE, B=XX, C=YY, D=ZZ</li>
+          <li>Goal: A=EE, B=ZZ, C=XX, D=YY</li>
+          <li>AB=24m, BC=∞, CA=8m, BD=16m</li>
+          <li>EE=16m, XX=YY=ZZ=8m</li>
+          <li>Engine cannot use CA junction (16m &gt; 8m)</li>
+          <li>BD requires fly-shunt for wagons</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE 2: MODULE DEFINITIONS 1-4                                -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="header-bar red">INDIVIDUAL MODULE DEFINITIONS (1–4)</div>
+  <div class="two-col">
+
+    <!-- MODULE 1: INITIALIZATION -->
+    <div class="module-box yellow">
+      <div class="module-title"><span class="module-num">1</span><span class="module-name">INITIALIZATION</span></div>
+
+      <div class="section-label">TRACKS</div>
+      <ul>
+        <li>Track A (triangle vertex)</li>
+        <li>Track B (triangle vertex — central hub)</li>
+        <li>Track C (triangle vertex)</li>
+        <li>Track D (dead-end siding off B)</li>
+      </ul>
+
+      <div class="section-label" style="margin-top:10px;">JUNCTIONS &amp; CAPACITY</div>
+      <table>
+        <tr><th>Junction</th><th>Connects</th><th>Capacity</th></tr>
+        <tr><td>AB Junction</td><td>A ↔ B</td><td>24 m</td></tr>
+        <tr><td>BC Junction</td><td>B ↔ C</td><td>Unlimited</td></tr>
+        <tr><td>CA Junction</td><td>C ↔ A</td><td>8 m</td></tr>
+        <tr><td>BD Junction</td><td>B ↔ D</td><td>16 m</td></tr>
+      </table>
+
+      <div class="section-label" style="margin-top:10px;">INITIAL POSITIONS</div>
+      <table>
+        <tr><th>Stock</th><th>Length</th><th>Track</th></tr>
+        <tr><td>Engine EE</td><td>16 m</td><td>Track A</td></tr>
+        <tr><td>Wagon XX</td><td>8 m</td><td>Track B</td></tr>
+        <tr><td>Wagon YY</td><td>8 m</td><td>Track C</td></tr>
+        <tr><td>Wagon ZZ</td><td>8 m</td><td>Track D</td></tr>
+      </table>
+
+      <div class="section-label" style="margin-top:10px;">DERIVED CONSTRAINTS</div>
+      <ul>
+        <li>Engine CANNOT use CA junction (16m &gt; 8m)</li>
+        <li>Engine+wagon CANNOT use BD junction (24m &gt; 16m)</li>
+        <li>Engine+wagon CAN use AB junction (24m = 24m)</li>
+        <li>Engine+2 wagons ONLY via BC (32m, unlimited)</li>
+        <li>Fly-shunt needed for BD (wagon alone 8m ≤ 16m)</li>
+      </ul>
+
+      <div style="margin-top:10px; background:#c8e6c9; padding:6px 10px; border-radius:4px; text-align:center; font-weight:bold;">
+        RETURN → go to ② TERMINATION CHECK
+      </div>
+    </div>
+
+    <!-- MODULE 2: TERMINATION CHECK -->
+    <div class="module-box yellow">
+      <div class="module-title"><span class="module-num">2</span><span class="module-name">TERMINATION CHECK</span></div>
+
+      <div class="section-label">QUESTION: Are all final state conditions satisfied?</div>
+
+      <table>
+        <tr><th>Condition</th><th>Required</th></tr>
+        <tr><td>Wagon XX position</td><td>Track C</td></tr>
+        <tr><td>Wagon YY position</td><td>Track D</td></tr>
+        <tr><td>Wagon ZZ position</td><td>Track B</td></tr>
+        <tr><td>Engine EE position</td><td>Track A</td></tr>
+        <tr><td>Coupled wagons</td><td>None (all decoupled)</td></tr>
+        <tr><td>Wagon order</td><td>Preserved</td></tr>
+        <tr><td>All constraints</td><td>Satisfied</td></tr>
+      </table>
+
+      <div class="flow-text" style="font-size:12px; margin-top:10px;">
+     ◇ Final state reached? ◇
+    ╱                         ╲
+  YES                         NO
+   │                           │
+   ▼                           ▼
+GO TO ⑩                   GO TO ③
+FINAL VALIDATION      SELECT NEXT ACTION
+      </div>
+    </div>
+
+    <!-- MODULE 3: SELECT NEXT LEGAL ACTION -->
+    <div class="module-box yellow">
+      <div class="module-title"><span class="module-num">3</span><span class="module-name">SELECT NEXT LEGAL ACTION</span></div>
+
+      <div class="section-label">Evaluate current state and choose next legal action</div>
+
+      <p style="margin:8px 0; font-size:13px;"><b>Possible actions:</b></p>
+      <table>
+        <tr><th>Action</th><th>Description</th></tr>
+        <tr><td>Move Engine</td><td>Move EE (with coupled wagons) to adjacent track via junction</td></tr>
+        <tr><td>Couple</td><td>Attach a wagon on same track to engine</td></tr>
+        <tr><td>Decouple</td><td>Detach a wagon from engine onto current track</td></tr>
+        <tr><td>Fly Shunt</td><td>Push coupled wagon through junction; wagon rolls alone, engine stays</td></tr>
+      </table>
+
+      <p style="margin:8px 0; font-size:13px;"><b>Selection strategy (BFS-optimal order):</b></p>
+      <ol style="padding-left:20px; font-size:13px;">
+        <li>If a wagon is on engine's track and needs to go elsewhere → COUPLE</li>
+        <li>If coupled wagon's destination is adjacent → MOVE or FLY_SHUNT</li>
+        <li>If engine needs to reach a wagon → MOVE (alone if needed)</li>
+        <li>If coupled wagon can't pass junction → FLY_SHUNT</li>
+      </ol>
+
+      <div style="margin-top:10px; background:#c8e6c9; padding:6px 10px; border-radius:4px; text-align:center; font-weight:bold;">
+        RETURN → go to ④ DEADLOCK CHECK
+      </div>
+    </div>
+
+    <!-- MODULE 4: DEADLOCK CHECK -->
+    <div class="module-box yellow">
+      <div class="module-title"><span class="module-num">4</span><span class="module-name">DEADLOCK CHECK</span></div>
+
+      <div class="section-label">Would this action create a state with no legal continuation?</div>
+
+      <p style="margin:8px 0; font-size:13px;"><b>Check the following:</b></p>
+      <table>
+        <tr><th>#</th><th>Check</th><th>Our Puzzle Detail</th></tr>
+        <tr><td>1</td><td>CA capacity</td><td>8m — engine (16m) can NEVER use this. Always route via B.</td></tr>
+        <tr><td>2</td><td>BD capacity</td><td>16m — engine alone fits. Engine+wagon does NOT fit. Use fly-shunt.</td></tr>
+        <tr><td>3</td><td>Track D occupancy</td><td>Max 1 wagon permanently. Don't send 2nd wagon before removing 1st.</td></tr>
+        <tr><td>4</td><td>Engine clearance</td><td>16m minimum clear space at destination.</td></tr>
+        <tr><td>5</td><td>Escape path</td><td>Engine must have ≥1 valid exit from destination track.</td></tr>
+        <tr><td>6</td><td>Coupling &amp; wagon positions</td><td>Max 2 wagons coupled. Never couple on D then try to exit via BD.</td></tr>
+        <tr><td>7</td><td>Junction occupancy</td><td>Max 1 unattended wagon per junction.</td></tr>
+      </table>
+
+      <div class="flow-text" style="font-size:12px; margin-top:10px;">
+     ◇ Deadlock detected? ◇
+    ╱                       ╲
+  YES                       NO
+   │                         │
+   ▼                         ▼
+REJECT ACTION            GO TO ⑤
+(Return to ③)        VALIDATE CAPACITY
+      </div>
+
+      <div class="module-box red" style="margin-top:10px; padding:8px;">
+        <b>CRITICAL DEADLOCK SCENARIOS FOR OUR PUZZLE:</b>
+        <ul>
+          <li><b>Trap on D:</b> If engine couples wagon on D → 24m &gt; 16m BD → can't exit! → Must fly-shunt first.</li>
+          <li><b>Trap on C:</b> Only exit is via BC (unlimited). CA is blocked. Always safe if BC route open.</li>
+          <li><b>Trap on A:</b> Only exit is via AB (24m). CA is blocked. Safe with ≤1 wagon coupled.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE 3: MODULE DEFINITIONS 5-7                                -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="header-bar red">INDIVIDUAL MODULE DEFINITIONS (5–7)</div>
+  <div class="two-col" style="grid-template-columns: 1fr 1fr;">
+
+    <!-- MODULE 5: VALIDATE CAPACITY -->
+    <div class="module-box yellow">
+      <div class="module-title"><span class="module-num">5</span><span class="module-name">VALIDATE CAPACITY</span></div>
+
+      <div class="section-label">Before executing action, validate ALL of the following:</div>
+
+      <table>
+        <tr><th>#</th><th>Validation Rule</th><th>How</th></tr>
+        <tr><td>1</td><td>16m engine clearance</td><td>Destination track has ≥16m free for engine</td></tr>
+        <tr><td>2</td><td>Junction capacity limits</td><td>total_consist_length ≤ junction_capacity</td></tr>
+        <tr><td>3</td><td>Max 1 unattended wagon on any junction</td><td>Count wagons parked at target junction</td></tr>
+        <tr><td>4</td><td>Track D permanent limit (≤1 wagon)</td><td>Count wagons on D after action</td></tr>
+        <tr><td>5</td><td>Max 2 wagons coupled behind engine</td><td>len(coupled_list) ≤ 2</td></tr>
+      </table>
+
+      <p style="margin:8px 0; font-size:13px;"><b>Capacity matrix for our puzzle:</b></p>
+      <table>
+        <tr><th>Route</th><th>Capacity</th><th>EE alone (16m)</th><th>EE+1w (24m)</th><th>EE+2w (32m)</th><th>Wagon alone (8m)</th></tr>
+        <tr><td>A ↔ B</td><td>24m</td><td class="highlight">✓</td><td class="highlight">✓ (exactly)</td><td>✗</td><td>✓</td></tr>
+        <tr><td>B ↔ C</td><td>∞</td><td class="highlight">✓</td><td class="highlight">✓</td><td class="highlight">✓</td><td>✓</td></tr>
+        <tr><td>C ↔ A</td><td>8m</td><td>✗</td><td>✗</td><td>✗</td><td class="highlight">✓ (exactly)</td></tr>
+        <tr><td>B ↔ D</td><td>16m</td><td class="highlight">✓ (exactly)</td><td>✗</td><td>✗</td><td>✓</td></tr>
+      </table>
+
+      <div class="flow-text" style="font-size:12px; margin-top:10px;">
+     ◇ Capacity valid? ◇
+    ╱                     ╲
+  YES                     NO
+   │                       │
+   ▼                       ▼
+GO TO ⑥              REJECT ACTION
+COUPLE/DECOUPLE      (Return to ③)
+      </div>
+    </div>
+
+    <!-- MODULE 6: COUPLE / DECOUPLE -->
+    <div class="module-box yellow">
+      <div class="module-title"><span class="module-num">6</span><span class="module-name">COUPLE / DECOUPLE</span></div>
+
+      <div class="section-label">Check the following before coupling or decoupling:</div>
+
+      <table>
+        <tr><th>#</th><th>Check</th><th>Detail</th></tr>
+        <tr><td>1</td><td>Wagon adjacent to engine?</td><td>Both must be on the same track</td></tr>
+        <tr><td>2</td><td>Coupling direction valid?</td><td>Wagons couple behind engine (push or pull)</td></tr>
+        <tr><td>3</td><td>Coupled wagons ≤ 2?</td><td>Max 2 wagons behind engine at once</td></tr>
+        <tr><td>4</td><td>Wagon order preserved?</td><td>When multiple wagons coupled, order must be maintained</td></tr>
+      </table>
+
+      <p style="margin:8px 0; font-size:13px;"><b>Our puzzle COUPLE operations:</b></p>
+      <table>
+        <tr><th>Step</th><th>Operation</th><th>Track</th><th>Coupled After</th></tr>
+        <tr><td>2</td><td>COUPLE XX</td><td>B</td><td>[XX]</td></tr>
+        <tr><td>4</td><td>DECOUPLE XX</td><td>C</td><td>[]</td></tr>
+        <tr><td>5</td><td>COUPLE YY</td><td>C</td><td>[YY]</td></tr>
+        <tr><td>7</td><td>DECOUPLE YY</td><td>B</td><td>[]</td></tr>
+        <tr><td>9</td><td>COUPLE ZZ</td><td>D</td><td>[ZZ]</td></tr>
+        <tr><td>10</td><td>FLY_SHUNT ZZ (decouple at speed)</td><td>D→B</td><td>[]</td></tr>
+        <tr><td>12</td><td>COUPLE YY</td><td>B</td><td>[YY]</td></tr>
+        <tr><td>13</td><td>FLY_SHUNT YY (decouple at speed)</td><td>B→D</td><td>[]</td></tr>
+      </table>
+
+      <div class="flow-text" style="font-size:12px; margin-top:10px;">
+     ◇ Couple/Decouple valid? ◇
+    ╱                           ╲
+  YES                           NO
+   │                             │
+   ▼                             ▼
+PERFORM                     REJECT ACTION
+COUPLE/DECOUPLE             (Return to ③)
+   │
+   ▼
+RETURN → go to ⑦ MOVE ENGINE
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULE 7: MOVE ENGINE (full width) -->
+  <div class="module-box yellow" style="margin-top:20px;">
+    <div class="module-title"><span class="module-num">7</span><span class="module-name">MOVE ENGINE</span></div>
+
+    <div class="two-col">
+      <div>
+        <div class="section-label">Is the movement legal? Check ALL:</div>
+        <table>
+          <tr><th>#</th><th>Check</th><th>Our Puzzle Values</th></tr>
+          <tr><td>1</td><td>Correct direction</td><td>Engine faces correct way for move</td></tr>
+          <tr><td>2</td><td>Destination path exists</td><td>Junction must exist between from→to tracks</td></tr>
+          <tr><td>3</td><td>16m clearance available</td><td>Destination track has room for engine</td></tr>
+          <tr><td>4</td><td>No U-turn at junction</td><td>Engine must complete transit, no reversing mid-junction</td></tr>
+          <tr><td>5</td><td>Junction capacity valid</td><td>consist_length ≤ junction_capacity (see Module ⑤ table)</td></tr>
+          <tr><td>6</td><td>Coupled configuration valid</td><td>Max 2 wagons, order preserved</td></tr>
+          <tr><td>7</td><td>Does not create deadlock</td><td>Post-move state has ≥1 valid exit (Module ④)</td></tr>
+        </table>
+      </div>
+      <div>
+        <div class="section-label">Our puzzle MOVE operations:</div>
+        <table>
+          <tr><th>Step</th><th>Move</th><th>Junction</th><th>Length ≤ Cap?</th></tr>
+          <tr><td>1</td><td>EE: A→B</td><td>AB (24m)</td><td>16 ≤ 24 ✓</td></tr>
+          <tr><td>3</td><td>[EE+XX]: B→C</td><td>BC (∞)</td><td>24 ≤ ∞ ✓</td></tr>
+          <tr><td>6</td><td>[EE+YY]: C→B</td><td>BC (∞)</td><td>24 ≤ ∞ ✓</td></tr>
+          <tr><td>8</td><td>EE: B→D</td><td>BD (16m)</td><td>16 ≤ 16 ✓</td></tr>
+          <tr class="highlight"><td>10</td><td>FLY_SHUNT ZZ: D→B</td><td>BD (16m)</td><td>8 ≤ 16 ✓</td></tr>
+          <tr><td>11</td><td>EE: D→B</td><td>BD (16m)</td><td>16 ≤ 16 ✓</td></tr>
+          <tr class="highlight"><td>13</td><td>FLY_SHUNT YY: B→D</td><td>BD (16m)</td><td>8 ≤ 16 ✓</td></tr>
+          <tr><td>14</td><td>EE: B→A</td><td>AB (24m)</td><td>16 ≤ 24 ✓</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="flow-text" style="font-size:12px; margin-top:10px;">
+     ◇ Legal move? ◇
+    ╱                 ╲
+  YES                 NO
+   │                   │
+   ▼                   ▼
+EXECUTE           REJECT ACTION
+ENGINE MOVEMENT   (Return to ③)
+   │
+   ▼
+RETURN → go to ⑧ STATE UPDATE
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE 4: MODULE DEFINITIONS 8-10                               -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="header-bar red">INDIVIDUAL MODULE DEFINITIONS (8–10)</div>
+  <div class="two-col" style="grid-template-columns: 1fr 1fr;">
+
+    <!-- MODULE 8: STATE UPDATE -->
+    <div class="module-box yellow">
+      <div class="module-title"><span class="module-num">8</span><span class="module-name">STATE UPDATE</span></div>
+
+      <div class="section-label">Update current system state after each action:</div>
+
+      <table>
+        <tr><th>Field</th><th>Update Action</th></tr>
+        <tr><td>Engine position</td><td>Set to destination track</td></tr>
+        <tr><td>Wagon positions</td><td>Coupled wagons move with engine; decoupled stay</td></tr>
+        <tr><td>Junction occupancy</td><td>Clear junction after transit</td></tr>
+        <tr><td>Coupling status</td><td>Add/remove from coupled list</td></tr>
+        <tr><td>Movement direction</td><td>Record from→to for reversal tracking</td></tr>
+        <tr><td>Track D occupancy</td><td>Verify ≤1 wagon on D</td></tr>
+        <tr><td>Move counter</td><td>Increment by 1</td></tr>
+      </table>
+
+      <p style="margin:10px 0; font-size:13px;"><b>State snapshot after each major step:</b></p>
+      <table style="font-size:11px;">
+        <tr><th>Step</th><th>A</th><th>B</th><th>C</th><th>D</th><th>Coupled</th></tr>
+        <tr><td>0 (init)</td><td>EE</td><td>XX</td><td>YY</td><td>ZZ</td><td>—</td></tr>
+        <tr><td>1</td><td>—</td><td>EE,XX</td><td>YY</td><td>ZZ</td><td>—</td></tr>
+        <tr><td>3</td><td>—</td><td>—</td><td>EE,XX,YY</td><td>ZZ</td><td>XX</td></tr>
+        <tr><td>6</td><td>—</td><td>EE,YY</td><td>XX</td><td>ZZ</td><td>YY</td></tr>
+        <tr><td>8</td><td>—</td><td>YY</td><td>XX</td><td>EE,ZZ</td><td>—</td></tr>
+        <tr><td>10</td><td>—</td><td>YY,ZZ</td><td>XX</td><td>EE</td><td>—</td></tr>
+        <tr><td>11</td><td>—</td><td>EE,YY,ZZ</td><td>XX</td><td>—</td><td>—</td></tr>
+        <tr><td>13</td><td>—</td><td>EE,ZZ</td><td>XX</td><td>YY</td><td>—</td></tr>
+        <tr><td>14</td><td><b>EE</b></td><td><b>ZZ</b></td><td><b>XX</b></td><td><b>YY</b></td><td>—</td></tr>
+      </table>
+
+      <div class="flow-text" style="font-size:12px; margin-top:10px;">
+     ◇ Was a reversal performed? ◇
+    ╱                               ╲
+  YES                               NO
+   │                                 │
+   ▼                                 ▼
+GO TO ⑨                        GO TO ②
+UPDATE REVERSAL COUNT       TERMINATION CHECK
+      </div>
+    </div>
+
+    <!-- MODULE 9: UPDATE REVERSAL COUNT -->
+    <div class="module-box yellow">
+      <div class="module-title"><span class="module-num">9</span><span class="module-name">UPDATE REVERSAL COUNT</span></div>
+
+      <div class="section-label">Was engine direction reversed?</div>
+
+      <p style="margin:8px 0; font-size:13px;">A reversal occurs when the engine's new direction is the <b>exact opposite</b> of its previous direction (e.g., B→D followed by D→B).</p>
+
+      <table>
+        <tr><th>Move</th><th>Direction</th><th>Previous</th><th>Reversal?</th><th>Count</th></tr>
+        <tr><td>EE: A→B</td><td>A→B</td><td>—</td><td>No</td><td>0</td></tr>
+        <tr><td>[EE+XX]: B→C</td><td>B→C</td><td>A→B</td><td>No</td><td>0</td></tr>
+        <tr><td>[EE+YY]: C→B</td><td>C→B</td><td>B→C</td><td class="highlight"><b>YES</b></td><td><b>1</b></td></tr>
+        <tr><td>EE: B→D</td><td>B→D</td><td>C→B</td><td>No</td><td>1</td></tr>
+        <tr><td>FLY ZZ: D→B</td><td>D→B</td><td>B→D</td><td class="highlight"><b>YES</b></td><td><b>2</b></td></tr>
+        <tr><td>EE: D→B</td><td>D→B</td><td>D→B</td><td>No</td><td>2</td></tr>
+        <tr><td>FLY YY: B→D</td><td>B→D</td><td>D→B</td><td class="highlight"><b>YES</b></td><td><b>3</b></td></tr>
+        <tr><td>EE: B→A</td><td>B→A</td><td>B→D</td><td>No</td><td>3</td></tr>
+      </table>
+
+      <div style="margin-top:10px; background:#e8f5e9; border:1px solid #2e7d32; padding:8px; border-radius:4px;">
+        <b>Total Reversals: 3</b> (optimized — each is structurally necessary)
+        <br>BFS optimal achieves 2 reversals with different action ordering.
+      </div>
+
+      <div style="margin-top:10px; background:#c8e6c9; padding:6px 10px; border-radius:4px; text-align:center; font-weight:bold;">
+        RETURN → go to ② TERMINATION CHECK
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULE 10: FINAL VALIDATION (full width) -->
+  <div class="module-box" style="background:#fce4ec; border-color:#c62828; margin-top:20px;">
+    <div class="module-title"><span class="module-num red">10</span><span class="module-name">FINAL VALIDATION</span></div>
+
+    <div class="two-col">
+      <div>
+        <div class="section-label">Update the current system state and confirm:</div>
+        <table>
+          <tr><th>Check</th><th>Expected</th><th>Actual</th><th>Result</th></tr>
+          <tr><td>XX position</td><td>Track C</td><td>Track C</td><td style="color:#2e7d32;font-weight:bold;">✓ PASS</td></tr>
+          <tr><td>YY position</td><td>Track D</td><td>Track D</td><td style="color:#2e7d32;font-weight:bold;">✓ PASS</td></tr>
+          <tr><td>ZZ position</td><td>Track B</td><td>Track B</td><td style="color:#2e7d32;font-weight:bold;">✓ PASS</td></tr>
+          <tr><td>Engine EE position</td><td>Track A</td><td>Track A</td><td style="color:#2e7d32;font-weight:bold;">✓ PASS</td></tr>
+          <tr><td>Wagon order preserved</td><td>Yes</td><td>Yes (max 1 coupled at a time)</td><td style="color:#2e7d32;font-weight:bold;">✓ PASS</td></tr>
+          <tr><td>All constraints satisfied</td><td>Yes</td><td>Yes (12 checks verified)</td><td style="color:#2e7d32;font-weight:bold;">✓ PASS</td></tr>
+        </table>
+      </div>
+      <div>
+        <div class="section-label">Operational constraint re-verification:</div>
+        <table>
+          <tr><th>Constraint</th><th>Violated?</th></tr>
+          <tr><td>Junction capacities exceeded</td><td style="color:#2e7d32;">Never ✓</td></tr>
+          <tr><td>U-turn at junction</td><td style="color:#2e7d32;">Never ✓</td></tr>
+          <tr><td>&gt;2 wagons coupled</td><td style="color:#2e7d32;">Never ✓</td></tr>
+          <tr><td>&gt;1 wagon at junction</td><td style="color:#2e7d32;">Never ✓</td></tr>
+          <tr><td>Track D &gt;1 wagon</td><td style="color:#2e7d32;">Never ✓</td></tr>
+          <tr><td>Deadlock occurred</td><td style="color:#2e7d32;">Never ✓</td></tr>
+          <tr><td>Engine &lt;16m clearance</td><td style="color:#2e7d32;">Never ✓</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="flow-text" style="font-size:12px; margin-top:10px;">
+     ◇ All good? ◇
+    ╱               ╲
+  YES               NO
+   │                 │
+   ▼                 ▼
+┌─────┐        GO TO ③
+│ END │     SELECT NEXT
+└─────┘     LEGAL ACTION
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE 5: TRACK TOPOLOGY DIAGRAM                                -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="header-bar green">TRACK TOPOLOGY &amp; ENGINE MOVEMENT MAP</div>
+
+  <div class="flow-text" style="font-size:14px; line-height:2;">
+                              TRACK A
+                           ┌──────────┐
+                           │ Engine EE│  ← INITIAL (returns here at END)
+                           │  (16m)   │
+                           └────┬─────┘
+                               │
+               ┌───────────────┼───────────────┐
+               │               │               │
+          CA Junction     AB Junction      (no direct
+           (8m) ✗          (24m) ✓          A↔D route)
+          ENGINE CANNOT    EE: ✓
+          USE THIS!        EE+1w: ✓
+               │           EE+2w: ✗
+               │               │
+        ┌──────▼──────┐  ┌─────▼──────┐     ┌──────────┐
+        │   TRACK C   │  │  TRACK B   │     │ TRACK D  │
+        │             │  │  (HUB)     │     │ (Siding) │
+        │  Wagon YY   │──│  Wagon XX  │─────│ Wagon ZZ │
+        │   (8m)      │  │   (8m)     │     │  (8m)    │
+        └─────────────┘  └────────────┘     └──────────┘
+              │          BC Junction         BD Junction
+              └──────────   (∞) ✓     ───────  (16m)
+                          EE: ✓               EE alone: ✓
+                          EE+1w: ✓            EE+1w: ✗
+                          EE+2w: ✓            FLY_SHUNT: ✓
+                                              (wagon 8m ≤ 16m)
+  </div>
+
+  <div class="header-bar orange" style="margin-top:20px;">ENGINE ROUTE MAP — STEP BY STEP</div>
+
+  <div class="flow-text" style="font-size:13px; line-height:1.8;">
+  Step  Engine Path        What's Happening
+  ────  ──────────────     ──────────────────────────────────────────
+   1    A ═══AB═══► B      Engine leaves home, arrives at hub (Track B)
+   2    [couple XX on B]   Pick up Wagon XX
+   3    B ═══BC═══► C      Deliver XX to Track C (XX at goal! ✓)
+   4    [decouple XX]      Drop XX on C
+   5    [couple YY on C]   Pick up Wagon YY
+   6    C ═══BC═══► B      Bring YY back to hub      ↺ REVERSAL 1
+   7    [decouple YY]      Stage YY on Track B
+   8    B ═══BD═══► D      Engine goes to D alone (16m = 16m capacity)
+   9    [couple ZZ on D]   Pick up Wagon ZZ
+  10    [FLY_SHUNT ZZ→B]   Push ZZ, decouple → ZZ rolls to B (8≤16m)  ↺ REV 2
+  11    D ═══BD═══► B      Engine follows back to hub
+  12    [couple YY on B]   Pick up staged YY
+  13    [FLY_SHUNT YY→D]   Push YY, decouple → YY rolls to D (8≤16m)  ↺ REV 3
+  14    B ═══AB═══► A      Engine returns home (EE at goal! ✓)
+  ────  ──────────────     ──────────────────────────────────────────
+        FINAL:  A=EE ✓   B=ZZ ✓   C=XX ✓   D=YY ✓
+        MOVES: 8 physical movements | REVERSALS: 3
+  </div>
+</div>
+
+</body>
+</html>

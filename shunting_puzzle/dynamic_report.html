@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dynamic Shunting Puzzle — Solutions</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f5f5; padding: 20px; color: #222; }
+  .page { background: #fff; max-width: 1200px; margin: 0 auto 30px; padding: 25px; border: 1px solid #ccc;
+           box-shadow: 0 2px 8px rgba(0,0,0,0.1); page-break-after: always; }
+  .header-bar { background: #1a237e; color: #fff; font-weight: bold; font-size: 17px; text-align: center;
+                 padding: 10px; margin-bottom: 15px; border-radius: 4px; }
+  .header-bar.red { background: #b71c1c; }
+  .header-bar.green { background: #2e7d32; }
+  .header-bar.orange { background: #e65100; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .module-box { border: 2px solid #333; border-radius: 6px; margin: 10px 0; padding: 12px; }
+  .module-box.blue { background: #e3f2fd; border-color: #1565c0; }
+  .module-box.yellow { background: #fffde7; border-color: #f9a825; }
+  .module-box.green { background: #e8f5e9; border-color: #2e7d32; }
+  .module-box.red { background: #fce4ec; border-color: #c62828; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+  th { background: #e0e0e0; padding: 5px 8px; border: 1px solid #999; text-align: left; }
+  td { padding: 5px 8px; border: 1px solid #ccc; }
+  ul { padding-left: 18px; margin: 5px 0; }
+  li { margin: 2px 0; font-size: 13px; }
+  .flow-text { font-family: Consolas, monospace; font-size: 13px; background: #fafafa; border: 1px solid #ddd;
+                padding: 12px; border-radius: 4px; white-space: pre; line-height: 1.5; overflow-x: auto; }
+  h3 { color: #1a237e; }
+</style>
+</head>
+<body>
+
+<!-- PAGE 1: MASTER FLOWCHART + CONFIGURATION -->
+<div class="page">
+  <div class="header-bar">DYNAMIC SHUNTING PUZZLE — MASTER FLOWCHART &amp; MODULE DEFINITIONS</div>
+  <div class="two-col" style="grid-template-columns: 55% 45%;">
+    <div>
+      <div class="flow-text">
+                        ┌─────────┐
+                        │  START  │
+                        └────┬────┘
+                             │
+                    ┌────────▼────────┐
+               ①   │ INITIALIZATION  │  Load tracks, junctions,
+                    └────────┬────────┘  stock, positions
+                             │
+                ┌────────────▼────────────┐
+           ②   │   TERMINATION CHECK     │  All goals met?
+                └────────────┬────────────┘
+                             │
+                    ◇ Goal satisfied? ◇
+                   ╱                   ╲
+             YES  ╱                     ╲  NO
+                 ╱                       ╲
+      ┌─────────▼──────────┐    ┌────────▼─────────────┐
+  ⑩  │ FINAL VALIDATION   │  ③│ SELECT NEXT LEGAL    │
+      └─────────┬──────────┘    │ ACTION               │
+                │               └────────┬─────────────┘
+       ◇ All OK? ◇                      │
+      ╱           ╲             ┌────────▼────────┐
+    YES           NO          ④│ DEADLOCK CHECK  │
+     │             │            └────────┬────────┘
+     ▼             ▼                     │
+  ┌─────┐    Return to ③       ◇ Deadlocked? ◇
+  │ END │                     ╱               ╲
+  └─────┘                   YES               NO
+                              │                │
+                   ┌──────────▼──┐    ┌────────▼────────┐
+                   │REJECT ACTION│  ⑤│VALIDATE CAPACITY│
+                   │→ back to ③  │    └────────┬────────┘
+                   └─────────────┘             │
+                                      ◇ Valid? ◇
+                                     ╱          ╲
+                                   YES          NO
+                                    │      ┌─────▼───────┐
+                           ┌────────▼──┐   │REJECT → ③   │
+                      ⑥   │COUPLE /   │   └─────────────┘
+                           │DECOUPLE   │
+                           └────────┬──┘
+                           ┌────────▼──────┐
+                      ⑦   │ MOVE ENGINE / │
+                           │ FLY_SHUNT    │
+                           └────────┬──────┘
+                           ┌────────▼──────┐
+                      ⑧   │ STATE UPDATE  │
+                           └────────┬──────┘
+                           ┌────────▼──────────┐
+                      ⑨   │REVERSAL COUNT UPD │
+                           └────────┬──────────┘
+                                    │
+                                    └──→ back to ②
+      </div>
+    </div>
+    <div>
+      <div class="module-box blue">
+        <b>① INITIALIZATION — Input Configuration</b>
+        <table>
+          <tr><th>Tracks</th><td>A, B, C, D</td></tr>
+          <tr><th>Engine</th><td>EE (16m)</td></tr>
+          <tr><th>Max Coupled</th><td>2</td></tr>
+        </table>
+        <b>Rolling Stock:</b>
+        <table><tr><th>Name</th><th>Role</th><th>Length</th><th>Start</th></tr><tr><td>EE</td><td>Engine</td><td>16m</td><td>Track A</td></tr>
+<tr><td>XX</td><td>Wagon</td><td>8m</td><td>Track B</td></tr>
+<tr><td>YY</td><td>Wagon</td><td>8m</td><td>Track C</td></tr>
+<tr><td>ZZ</td><td>Wagon</td><td>8m</td><td>Track D</td></tr>
+</table>
+        <b>Junctions &amp; Capacity:</b>
+        <table>
+          <tr><th>Route</th><th>Capacity</th><th>EE</th><th>+1w</th><th>+2w</th></tr>
+          <tr><td>A ↔ B</td><td>24m</td><td>✓</td><td>✓</td><td>✗</td></tr>
+<tr><td>A ↔ C</td><td>8m</td><td>✗</td><td>✗</td><td>✗</td></tr>
+<tr><td>B ↔ C</td><td>∞</td><td>✓</td><td>✓</td><td>✓</td></tr>
+<tr><td>B ↔ D</td><td>16m</td><td>✓</td><td>✗</td><td>✗</td></tr>
+
+        </table>
+        <b>Siding Limits:</b>
+        <table><tr><th>Track</th><th>Limit</th></tr><tr><td>Track D</td><td>Max 1 wagon(s)</td></tr>
+</table>
+      </div>
+
+      <div class="module-box yellow">
+        <b>④ DEADLOCK CHECK — Per Track Analysis</b>
+        <table><tr><th>Track</th><th>Available Exits</th><th>Status</th></tr><tr><td>Track A</td><td>B(24m, engine:✓), C(8m, engine:✗)</td><td><b>SAFE</b></td></tr>
+<tr><td>Track B</td><td>A(24m, engine:✓), C(∞, engine:✓), D(16m, engine:✓)</td><td><b>SAFE</b></td></tr>
+<tr><td>Track C</td><td>B(∞, engine:✓), A(8m, engine:✗)</td><td><b>SAFE</b></td></tr>
+<tr><td>Track D</td><td>B(16m, engine:✓)</td><td><b>SAFE</b></td></tr>
+</table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 2: MODULE DEFINITIONS -->
+<div class="page">
+  <div class="header-bar red">MODULE DEFINITIONS — DECISION LOGIC (YES/NO PATHS)</div>
+  <div class="two-col">
+
+    <div class="module-box yellow">
+      <b>② TERMINATION CHECK</b>
+      <p style="font-size:13px;margin:5px 0;">Is every wagon and engine at its goal position with nothing coupled?</p>
+      <div class="flow-text" style="font-size:12px;">
+  ◇ All items at goal position? ◇
+ ╱                                ╲
+YES                               NO
+ │                                 │
+ ▼                                 ▼
+┌──────────────────┐    ┌──────────────────────┐
+│ Go to ⑩ FINAL   │    │ Go to ③ SELECT NEXT  │
+│ VALIDATION       │    │ LEGAL ACTION         │
+│                  │    │                      │
+│ • Check all      │    │ • Evaluate current   │
+│   constraints    │    │   state              │
+│ • Confirm order  │    │ • Choose best action │
+│ • Verify capacity│    │ • Prioritize moves   │
+│   was never      │    │   closer to goal     │
+│   exceeded       │    │                      │
+└──────────────────┘    └──────────────────────┘
+      </div>
+    </div>
+
+    <div class="module-box yellow">
+      <b>③ SELECT NEXT LEGAL ACTION</b>
+      <p style="font-size:13px;margin:5px 0;">Choose from 4 possible action types:</p>
+      <div class="flow-text" style="font-size:12px;">
+  Current State Analysis
+         │
+    ┌────▼────┐
+    │ Wagon on│──YES──► COUPLE it
+    │ track?  │
+    └────┬────┘
+         │ NO
+    ┌────▼──────────┐
+    │ Coupled wagon │──YES──► MOVE or FLY_SHUNT
+    │ needs to move?│
+    └────┬──────────┘
+         │ NO
+    ┌────▼──────────┐
+    │ Need to reach │──YES──► MOVE engine alone
+    │ another wagon?│
+    └────┬──────────┘
+         │ NO
+    ┌────▼──────────┐
+    │ Coupled wagon │──YES──► DECOUPLE it
+    │ at dest?      │
+    └───────────────┘
+      </div>
+    </div>
+
+    <div class="module-box yellow">
+      <b>④ DEADLOCK CHECK</b>
+      <p style="font-size:13px;margin:5px 0;">Can engine escape current track with current coupling?</p>
+      <div class="flow-text" style="font-size:12px;">
+  For each adjacent track from engine position:
+         │
+    ┌────▼──────────────────┐
+    │ Can consist fit       │
+    │ through junction?     │
+    └────┬──────────────────┘
+         │
+    ◇ Any valid exit? ◇
+   ╱                    ╲
+  YES                   NO
+   │                     │
+   ▼                     ▼
+┌─────────────┐   ┌─────────────────┐
+│ SAFE        │   │ Can engine move │
+│ → Continue  │   │ ALONE to any    │
+│   to ⑤     │   │ adjacent?       │
+└─────────────┘   └────┬────────────┘
+                       │
+                  ◇ Alone OK? ◇
+                 ╱              ╲
+               YES              NO
+                │                │
+                ▼                ▼
+          ┌──────────┐    ┌──────────────┐
+          │ DECOUPLE │    │ DEADLOCKED!  │
+          │ first,   │    │ REJECT action│
+          │ then move│    │ → back to ③ │
+          └──────────┘    └──────────────┘
+      </div>
+    </div>
+
+    <div class="module-box yellow">
+      <b>⑤ VALIDATE CAPACITY</b>
+      <p style="font-size:13px;margin:5px 0;">Pre-move validation of ALL constraints:</p>
+      <div class="flow-text" style="font-size:12px;">
+  ◇ consist_length ≤ junction_capacity? ◇
+ ╱                                        ╲
+YES                                       NO
+ │                                         │
+ ▼                                         ▼
+◇ coupled ≤ max_coupled? ◇          ┌──────────┐
+╱                         ╲          │ REJECT   │
+YES                       NO         │ → ③     │
+│                          │         └──────────┘
+▼                          ▼
+◇ siding limits OK? ◇   REJECT → ③
+╱                     ╲
+YES                   NO
+│                      │
+▼                      ▼
+◇ engine 16m clear? ◇ REJECT → ③
+╱                    ╲
+YES                  NO
+│                     │
+▼                     ▼
+PASS → ⑥         REJECT → ③
+      </div>
+    </div>
+  </div>
+
+  <div class="two-col" style="margin-top:15px;">
+    <div class="module-box yellow">
+      <b>⑥ COUPLE / DECOUPLE — Decision Flow</b>
+      <div class="flow-text" style="font-size:12px;">
+  ◇ Action type? ◇
+ ╱                 ╲
+COUPLE            DECOUPLE
+ │                   │
+ ▼                   ▼
+◇ Same track    ◇ Wagon in
+│ as engine?    │ coupled list?
+╱           ╲   ╱            ╲
+YES         NO  YES          NO
+│            │   │             │
+▼            ▼   ▼             ▼
+◇ Count    FAIL  Remove from  FAIL
+│ &lt; max?        coupled list → ③
+╱      ╲         Add to track
+YES    NO              │
+│       │              ▼
+▼       ▼           PASS → ⑦
+Add to  FAIL
+coupled  → ③
+Remove
+from track
+   │
+   ▼
+PASS → ⑦
+      </div>
+    </div>
+
+    <div class="module-box yellow">
+      <b>⑦ MOVE / FLY_SHUNT — Decision Flow</b>
+      <div class="flow-text" style="font-size:12px;">
+  ◇ Action type? ◇
+ ╱                  ╲
+MOVE              FLY_SHUNT
+ │                    │
+ ▼                    ▼
+Engine + coupled   Wagon alone rolls
+all travel to      through junction.
+destination.       Engine stays.
+ │                    │
+ ▼                    ▼
+Update engine      Remove wagon from
+position.          coupled list.
+ │                 Add to destination.
+ ▼                    │
+PASS → ⑧           PASS → ⑧
+      </div>
+    </div>
+  </div>
+
+  <div class="two-col" style="margin-top:15px;">
+    <div class="module-box yellow">
+      <b>⑧ STATE UPDATE</b>
+      <div class="flow-text" style="font-size:12px;">
+  After action execution:
+    │
+    ├── Update track contents
+    ├── Update engine position
+    ├── Update coupled list
+    ├── Update junction occupancy
+    ├── Increment move counter
+    │
+    ▼
+  ◇ Was direction reversed? ◇
+ ╱                            ╲
+YES                           NO
+ │                             │
+ ▼                             ▼
+GO TO ⑨                  GO TO ②
+(update reversal count)  (termination check)
+      </div>
+    </div>
+
+    <div class="module-box" style="background:#fce4ec;border-color:#c62828;">
+      <b>⑩ FINAL VALIDATION</b>
+      <div class="flow-text" style="font-size:12px;">
+  ◇ Every item at goal position? ◇
+ ╱                                 ╲
+YES                                NO
+ │                                  │
+ ▼                                  ▼
+◇ Nothing coupled? ◇          FAIL → ③
+╱                    ╲
+YES                  NO
+│                     │
+▼                     ▼
+◇ No constraints   FAIL → ③
+│ violated?
+╱            ╲
+YES          NO
+│             │
+▼             ▼
+┌─────┐   FAIL → ③
+│ END │
+│  ✓  │
+└─────┘
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SOLUTION PAGES -->
+
+        <div class="page">
+          <div class="header-bar green">SOLUTION 1 — Goal: A=['EE'], B=['XX'], C=['YY'], D=['ZZ']</div>
+          <p style="margin-bottom:10px;"><b>Actions: 0</b> |
+             <b>Reversals: 0</b></p>
+
+          <div class="two-col">
+            <div>
+              <h3 style="margin:10px 0 5px;">Solution Flowchart</h3>
+              <div style="border:2px solid #1a237e;border-radius:6px;padding:15px;background:#fafafa;">
+                <div style="background:#ef9a9a;border:2px solid #c62828;border-radius:20px;padding:6px;
+                  text-align:center;font-weight:bold;margin-bottom:5px;">START</div>
+                <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+                
+                <div style="background:#ef9a9a;border:2px solid #c62828;border-radius:20px;padding:6px;
+                  text-align:center;font-weight:bold;margin-top:5px;">END ✓</div>
+              </div>
+            </div>
+            <div>
+              <h3 style="margin:10px 0 5px;">Final State Validation (Module ⑩)</h3>
+              <table><tr><th>Track</th><th>Expected</th><th>Actual</th><th>Status</th></tr>
+                <tr>
+              <td>Track A</td><td>['EE']</td><td>['EE']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+<tr>
+              <td>Track B</td><td>['XX']</td><td>['XX']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+<tr>
+              <td>Track C</td><td>['YY']</td><td>['YY']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+<tr>
+              <td>Track D</td><td>['ZZ']</td><td>['ZZ']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+</table>
+
+              <h3 style="margin:15px 0 5px;">Capacity Checks (Module ⑤)</h3>
+              <table><tr><th>Route</th><th>Capacity</th><th>Length</th><th>Status</th></tr>
+                </table>
+
+              <h3 style="margin:15px 0 5px;">Reversal Analysis (Module ⑨)</h3>
+              <table><tr><th>Direction</th><th>Previous</th><th>Reversal?</th></tr>
+                </table>
+            </div>
+          </div>
+
+          <h3 style="margin:15px 0 5px;">State Transition Table (Module ⑧)</h3>
+          <div style="overflow-x:auto;">
+          <table style="font-size:12px;">
+            <tr><th>Step</th><th>Action</th><th>Track A</th><th>Track B</th><th>Track C</th><th>Track D</th><th>Coupled</th><th>Engine On</th></tr>
+            <tr>
+              <td>0</td><td>Initial State</td>
+              <td>EE</td><td>XX</td><td>YY</td><td>ZZ</td>
+              <td>—</td><td>A</td>
+            </tr>
+
+          </table>
+          </div>
+        </div>
+        
+        <div class="page">
+          <div class="header-bar green">SOLUTION 2 — Goal: A=['EE'], B=['XX'], C=['ZZ'], D=['YY']</div>
+          <p style="margin-bottom:10px;"><b>Actions: 12</b> |
+             <b>Reversals: 2</b></p>
+
+          <div class="two-col">
+            <div>
+              <h3 style="margin:10px 0 5px;">Solution Flowchart</h3>
+              <div style="border:2px solid #1a237e;border-radius:6px;padding:15px;background:#fafafa;">
+                <div style="background:#ef9a9a;border:2px solid #c62828;border-radius:20px;padding:6px;
+                  text-align:center;font-weight:bold;margin-bottom:5px;">START</div>
+                <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+                
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">1</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE] A→B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">2</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE] B→D
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">3</span>
+              <div style="background:#e3f2fd;border:2px solid #1565c0;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>COUPLE</b>: COUPLE ZZ on Track D
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">4</span>
+              <div style="background:#fff3e0;border:2px solid #e65100;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>FLY_SHUNT</b>: FLY_SHUNT ZZ D→B (engine stays D)
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">5</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE] D→B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">6</span>
+              <div style="background:#e3f2fd;border:2px solid #1565c0;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>COUPLE</b>: COUPLE ZZ on Track B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">7</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE+ZZ] B→C
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">8</span>
+              <div style="background:#e3f2fd;border:2px solid #1565c0;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>COUPLE</b>: COUPLE YY on Track C
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">9</span>
+              <div style="background:#e3f2fd;border:2px solid #1565c0;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>DECOUPLE</b>: DECOUPLE ZZ on Track C
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">10</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE+YY] C→B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">11</span>
+              <div style="background:#fff3e0;border:2px solid #e65100;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>FLY_SHUNT</b>: FLY_SHUNT YY B→D (engine stays B)
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">12</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE] B→A
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+                <div style="background:#ef9a9a;border:2px solid #c62828;border-radius:20px;padding:6px;
+                  text-align:center;font-weight:bold;margin-top:5px;">END ✓</div>
+              </div>
+            </div>
+            <div>
+              <h3 style="margin:10px 0 5px;">Final State Validation (Module ⑩)</h3>
+              <table><tr><th>Track</th><th>Expected</th><th>Actual</th><th>Status</th></tr>
+                <tr>
+              <td>Track A</td><td>['EE']</td><td>['EE']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+<tr>
+              <td>Track B</td><td>['XX']</td><td>['XX']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+<tr>
+              <td>Track C</td><td>['ZZ']</td><td>['ZZ']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+<tr>
+              <td>Track D</td><td>['YY']</td><td>['YY']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+</table>
+
+              <h3 style="margin:15px 0 5px;">Capacity Checks (Module ⑤)</h3>
+              <table><tr><th>Route</th><th>Capacity</th><th>Length</th><th>Status</th></tr>
+                <tr><td>A→B</td><td>24m</td><td>16m</td><td>✓ PASS</td></tr>
+<tr><td>B→D</td><td>16m</td><td>16m</td><td>✓ PASS</td></tr>
+<tr><td>D→B</td><td>16m</td><td>8m</td><td>✓ PASS</td></tr>
+<tr><td>D→B</td><td>16m</td><td>16m</td><td>✓ PASS</td></tr>
+<tr><td>B→C</td><td>∞</td><td>24m</td><td>✓ PASS</td></tr>
+<tr><td>C→B</td><td>∞</td><td>24m</td><td>✓ PASS</td></tr>
+<tr><td>B→D</td><td>16m</td><td>8m</td><td>✓ PASS</td></tr>
+<tr><td>B→A</td><td>24m</td><td>16m</td><td>✓ PASS</td></tr>
+</table>
+
+              <h3 style="margin:15px 0 5px;">Reversal Analysis (Module ⑨)</h3>
+              <table><tr><th>Direction</th><th>Previous</th><th>Reversal?</th></tr>
+                <tr><td>A→B</td><td>—</td><td>no</td></tr>
+<tr><td>B→D</td><td>A→B</td><td>no</td></tr>
+<tr><td>D→B</td><td>B→D</td><td><b style='color:#c62828'>YES (#1)</b></td></tr>
+<tr><td>D→B</td><td>D→B</td><td>no</td></tr>
+<tr><td>B→C</td><td>D→B</td><td>no</td></tr>
+<tr><td>C→B</td><td>B→C</td><td><b style='color:#c62828'>YES (#2)</b></td></tr>
+<tr><td>B→D</td><td>C→B</td><td>no</td></tr>
+<tr><td>B→A</td><td>B→D</td><td>no</td></tr>
+</table>
+            </div>
+          </div>
+
+          <h3 style="margin:15px 0 5px;">State Transition Table (Module ⑧)</h3>
+          <div style="overflow-x:auto;">
+          <table style="font-size:12px;">
+            <tr><th>Step</th><th>Action</th><th>Track A</th><th>Track B</th><th>Track C</th><th>Track D</th><th>Coupled</th><th>Engine On</th></tr>
+            <tr>
+              <td>0</td><td>Initial State</td>
+              <td>EE</td><td>XX</td><td>YY</td><td>ZZ</td>
+              <td>—</td><td>A</td>
+            </tr>
+<tr>
+              <td>1</td><td>MOVE [EE] A→B</td>
+              <td>—</td><td>XX, EE</td><td>YY</td><td>ZZ</td>
+              <td>—</td><td>B</td>
+            </tr>
+<tr>
+              <td>2</td><td>MOVE [EE] B→D</td>
+              <td>—</td><td>XX</td><td>YY</td><td>ZZ, EE</td>
+              <td>—</td><td>D</td>
+            </tr>
+<tr>
+              <td>3</td><td>COUPLE ZZ on Track D</td>
+              <td>—</td><td>XX</td><td>YY</td><td>EE</td>
+              <td>ZZ</td><td>D</td>
+            </tr>
+<tr>
+              <td>4</td><td>FLY_SHUNT ZZ D→B (engine stays D)</td>
+              <td>—</td><td>XX, ZZ</td><td>YY</td><td>EE</td>
+              <td>—</td><td>D</td>
+            </tr>
+<tr>
+              <td>5</td><td>MOVE [EE] D→B</td>
+              <td>—</td><td>XX, ZZ, EE</td><td>YY</td><td>—</td>
+              <td>—</td><td>B</td>
+            </tr>
+<tr>
+              <td>6</td><td>COUPLE ZZ on Track B</td>
+              <td>—</td><td>XX, EE</td><td>YY</td><td>—</td>
+              <td>ZZ</td><td>B</td>
+            </tr>
+<tr>
+              <td>7</td><td>MOVE [EE+ZZ] B→C</td>
+              <td>—</td><td>XX</td><td>YY, EE</td><td>—</td>
+              <td>ZZ</td><td>C</td>
+            </tr>
+<tr>
+              <td>8</td><td>COUPLE YY on Track C</td>
+              <td>—</td><td>XX</td><td>EE</td><td>—</td>
+              <td>ZZ, YY</td><td>C</td>
+            </tr>
+<tr>
+              <td>9</td><td>DECOUPLE ZZ on Track C</td>
+              <td>—</td><td>XX</td><td>EE, ZZ</td><td>—</td>
+              <td>YY</td><td>C</td>
+            </tr>
+<tr>
+              <td>10</td><td>MOVE [EE+YY] C→B</td>
+              <td>—</td><td>XX, EE</td><td>ZZ</td><td>—</td>
+              <td>YY</td><td>B</td>
+            </tr>
+<tr>
+              <td>11</td><td>FLY_SHUNT YY B→D (engine stays B)</td>
+              <td>—</td><td>XX, EE</td><td>ZZ</td><td>YY</td>
+              <td>—</td><td>B</td>
+            </tr>
+<tr>
+              <td>12</td><td>MOVE [EE] B→A</td>
+              <td>EE</td><td>XX</td><td>ZZ</td><td>YY</td>
+              <td>—</td><td>A</td>
+            </tr>
+
+          </table>
+          </div>
+        </div>
+        
+        <div class="page">
+          <div class="header-bar green">SOLUTION 3 — Goal: A=['EE'], B=['YY'], C=['XX'], D=['ZZ']</div>
+          <p style="margin-bottom:10px;"><b>Actions: 8</b> |
+             <b>Reversals: 1</b></p>
+
+          <div class="two-col">
+            <div>
+              <h3 style="margin:10px 0 5px;">Solution Flowchart</h3>
+              <div style="border:2px solid #1a237e;border-radius:6px;padding:15px;background:#fafafa;">
+                <div style="background:#ef9a9a;border:2px solid #c62828;border-radius:20px;padding:6px;
+                  text-align:center;font-weight:bold;margin-bottom:5px;">START</div>
+                <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+                
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">1</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE] A→B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">2</span>
+              <div style="background:#e3f2fd;border:2px solid #1565c0;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>COUPLE</b>: COUPLE XX on Track B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">3</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE+XX] B→C
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">4</span>
+              <div style="background:#e3f2fd;border:2px solid #1565c0;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>COUPLE</b>: COUPLE YY on Track C
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">5</span>
+              <div style="background:#e3f2fd;border:2px solid #1565c0;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>DECOUPLE</b>: DECOUPLE XX on Track C
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">6</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE+YY] C→B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">7</span>
+              <div style="background:#e3f2fd;border:2px solid #1565c0;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>DECOUPLE</b>: DECOUPLE YY on Track B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">8</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE] B→A
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+                <div style="background:#ef9a9a;border:2px solid #c62828;border-radius:20px;padding:6px;
+                  text-align:center;font-weight:bold;margin-top:5px;">END ✓</div>
+              </div>
+            </div>
+            <div>
+              <h3 style="margin:10px 0 5px;">Final State Validation (Module ⑩)</h3>
+              <table><tr><th>Track</th><th>Expected</th><th>Actual</th><th>Status</th></tr>
+                <tr>
+              <td>Track A</td><td>['EE']</td><td>['EE']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+<tr>
+              <td>Track B</td><td>['YY']</td><td>['YY']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+<tr>
+              <td>Track C</td><td>['XX']</td><td>['XX']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+<tr>
+              <td>Track D</td><td>['ZZ']</td><td>['ZZ']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+</table>
+
+              <h3 style="margin:15px 0 5px;">Capacity Checks (Module ⑤)</h3>
+              <table><tr><th>Route</th><th>Capacity</th><th>Length</th><th>Status</th></tr>
+                <tr><td>A→B</td><td>24m</td><td>16m</td><td>✓ PASS</td></tr>
+<tr><td>B→C</td><td>∞</td><td>24m</td><td>✓ PASS</td></tr>
+<tr><td>C→B</td><td>∞</td><td>24m</td><td>✓ PASS</td></tr>
+<tr><td>B→A</td><td>24m</td><td>16m</td><td>✓ PASS</td></tr>
+</table>
+
+              <h3 style="margin:15px 0 5px;">Reversal Analysis (Module ⑨)</h3>
+              <table><tr><th>Direction</th><th>Previous</th><th>Reversal?</th></tr>
+                <tr><td>A→B</td><td>—</td><td>no</td></tr>
+<tr><td>B→C</td><td>A→B</td><td>no</td></tr>
+<tr><td>C→B</td><td>B→C</td><td><b style='color:#c62828'>YES (#1)</b></td></tr>
+<tr><td>B→A</td><td>C→B</td><td>no</td></tr>
+</table>
+            </div>
+          </div>
+
+          <h3 style="margin:15px 0 5px;">State Transition Table (Module ⑧)</h3>
+          <div style="overflow-x:auto;">
+          <table style="font-size:12px;">
+            <tr><th>Step</th><th>Action</th><th>Track A</th><th>Track B</th><th>Track C</th><th>Track D</th><th>Coupled</th><th>Engine On</th></tr>
+            <tr>
+              <td>0</td><td>Initial State</td>
+              <td>EE</td><td>XX</td><td>YY</td><td>ZZ</td>
+              <td>—</td><td>A</td>
+            </tr>
+<tr>
+              <td>1</td><td>MOVE [EE] A→B</td>
+              <td>—</td><td>XX, EE</td><td>YY</td><td>ZZ</td>
+              <td>—</td><td>B</td>
+            </tr>
+<tr>
+              <td>2</td><td>COUPLE XX on Track B</td>
+              <td>—</td><td>EE</td><td>YY</td><td>ZZ</td>
+              <td>XX</td><td>B</td>
+            </tr>
+<tr>
+              <td>3</td><td>MOVE [EE+XX] B→C</td>
+              <td>—</td><td>—</td><td>YY, EE</td><td>ZZ</td>
+              <td>XX</td><td>C</td>
+            </tr>
+<tr>
+              <td>4</td><td>COUPLE YY on Track C</td>
+              <td>—</td><td>—</td><td>EE</td><td>ZZ</td>
+              <td>XX, YY</td><td>C</td>
+            </tr>
+<tr>
+              <td>5</td><td>DECOUPLE XX on Track C</td>
+              <td>—</td><td>—</td><td>EE, XX</td><td>ZZ</td>
+              <td>YY</td><td>C</td>
+            </tr>
+<tr>
+              <td>6</td><td>MOVE [EE+YY] C→B</td>
+              <td>—</td><td>EE</td><td>XX</td><td>ZZ</td>
+              <td>YY</td><td>B</td>
+            </tr>
+<tr>
+              <td>7</td><td>DECOUPLE YY on Track B</td>
+              <td>—</td><td>EE, YY</td><td>XX</td><td>ZZ</td>
+              <td>—</td><td>B</td>
+            </tr>
+<tr>
+              <td>8</td><td>MOVE [EE] B→A</td>
+              <td>EE</td><td>YY</td><td>XX</td><td>ZZ</td>
+              <td>—</td><td>A</td>
+            </tr>
+
+          </table>
+          </div>
+        </div>
+        
+        <div class="page">
+          <div class="header-bar green">SOLUTION 4 — Goal: A=['EE'], B=['YY'], C=['ZZ'], D=['XX']</div>
+          <p style="margin-bottom:10px;"><b>Actions: 14</b> |
+             <b>Reversals: 3</b></p>
+
+          <div class="two-col">
+            <div>
+              <h3 style="margin:10px 0 5px;">Solution Flowchart</h3>
+              <div style="border:2px solid #1a237e;border-radius:6px;padding:15px;background:#fafafa;">
+                <div style="background:#ef9a9a;border:2px solid #c62828;border-radius:20px;padding:6px;
+                  text-align:center;font-weight:bold;margin-bottom:5px;">START</div>
+                <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+                
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">1</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE] A→B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">2</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE] B→C
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">3</span>
+              <div style="background:#e3f2fd;border:2px solid #1565c0;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>COUPLE</b>: COUPLE YY on Track C
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">4</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE+YY] C→B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">5</span>
+              <div style="background:#e3f2fd;border:2px solid #1565c0;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>DECOUPLE</b>: DECOUPLE YY on Track B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">6</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE] B→D
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">7</span>
+              <div style="background:#e3f2fd;border:2px solid #1565c0;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>COUPLE</b>: COUPLE ZZ on Track D
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">8</span>
+              <div style="background:#fff3e0;border:2px solid #e65100;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>FLY_SHUNT</b>: FLY_SHUNT ZZ D→B (engine stays D)
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">9</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE] D→B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">10</span>
+              <div style="background:#e3f2fd;border:2px solid #1565c0;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>COUPLE</b>: COUPLE XX on Track B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">11</span>
+              <div style="background:#e3f2fd;border:2px solid #1565c0;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>COUPLE</b>: COUPLE ZZ on Track B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">12</span>
+              <div style="background:#fff3e0;border:2px solid #e65100;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>FLY_SHUNT</b>: FLY_SHUNT XX B→D (engine stays B)
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">13</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE+ZZ] B→A
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">14</span>
+              <div style="background:#fff3e0;border:2px solid #e65100;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>FLY_SHUNT</b>: FLY_SHUNT ZZ A→C (engine stays A)
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+                <div style="background:#ef9a9a;border:2px solid #c62828;border-radius:20px;padding:6px;
+                  text-align:center;font-weight:bold;margin-top:5px;">END ✓</div>
+              </div>
+            </div>
+            <div>
+              <h3 style="margin:10px 0 5px;">Final State Validation (Module ⑩)</h3>
+              <table><tr><th>Track</th><th>Expected</th><th>Actual</th><th>Status</th></tr>
+                <tr>
+              <td>Track A</td><td>['EE']</td><td>['EE']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+<tr>
+              <td>Track B</td><td>['YY']</td><td>['YY']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+<tr>
+              <td>Track C</td><td>['ZZ']</td><td>['ZZ']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+<tr>
+              <td>Track D</td><td>['XX']</td><td>['XX']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+</table>
+
+              <h3 style="margin:15px 0 5px;">Capacity Checks (Module ⑤)</h3>
+              <table><tr><th>Route</th><th>Capacity</th><th>Length</th><th>Status</th></tr>
+                <tr><td>A→B</td><td>24m</td><td>16m</td><td>✓ PASS</td></tr>
+<tr><td>B→C</td><td>∞</td><td>16m</td><td>✓ PASS</td></tr>
+<tr><td>C→B</td><td>∞</td><td>24m</td><td>✓ PASS</td></tr>
+<tr><td>B→D</td><td>16m</td><td>16m</td><td>✓ PASS</td></tr>
+<tr><td>D→B</td><td>16m</td><td>8m</td><td>✓ PASS</td></tr>
+<tr><td>D→B</td><td>16m</td><td>16m</td><td>✓ PASS</td></tr>
+<tr><td>B→D</td><td>16m</td><td>8m</td><td>✓ PASS</td></tr>
+<tr><td>B→A</td><td>24m</td><td>24m</td><td>✓ PASS</td></tr>
+<tr><td>A→C</td><td>8m</td><td>8m</td><td>✓ PASS</td></tr>
+</table>
+
+              <h3 style="margin:15px 0 5px;">Reversal Analysis (Module ⑨)</h3>
+              <table><tr><th>Direction</th><th>Previous</th><th>Reversal?</th></tr>
+                <tr><td>A→B</td><td>—</td><td>no</td></tr>
+<tr><td>B→C</td><td>A→B</td><td>no</td></tr>
+<tr><td>C→B</td><td>B→C</td><td><b style='color:#c62828'>YES (#1)</b></td></tr>
+<tr><td>B→D</td><td>C→B</td><td>no</td></tr>
+<tr><td>D→B</td><td>B→D</td><td><b style='color:#c62828'>YES (#2)</b></td></tr>
+<tr><td>D→B</td><td>D→B</td><td>no</td></tr>
+<tr><td>B→D</td><td>D→B</td><td><b style='color:#c62828'>YES (#3)</b></td></tr>
+<tr><td>B→A</td><td>B→D</td><td>no</td></tr>
+<tr><td>A→C</td><td>B→A</td><td>no</td></tr>
+</table>
+            </div>
+          </div>
+
+          <h3 style="margin:15px 0 5px;">State Transition Table (Module ⑧)</h3>
+          <div style="overflow-x:auto;">
+          <table style="font-size:12px;">
+            <tr><th>Step</th><th>Action</th><th>Track A</th><th>Track B</th><th>Track C</th><th>Track D</th><th>Coupled</th><th>Engine On</th></tr>
+            <tr>
+              <td>0</td><td>Initial State</td>
+              <td>EE</td><td>XX</td><td>YY</td><td>ZZ</td>
+              <td>—</td><td>A</td>
+            </tr>
+<tr>
+              <td>1</td><td>MOVE [EE] A→B</td>
+              <td>—</td><td>XX, EE</td><td>YY</td><td>ZZ</td>
+              <td>—</td><td>B</td>
+            </tr>
+<tr>
+              <td>2</td><td>MOVE [EE] B→C</td>
+              <td>—</td><td>XX</td><td>YY, EE</td><td>ZZ</td>
+              <td>—</td><td>C</td>
+            </tr>
+<tr>
+              <td>3</td><td>COUPLE YY on Track C</td>
+              <td>—</td><td>XX</td><td>EE</td><td>ZZ</td>
+              <td>YY</td><td>C</td>
+            </tr>
+<tr>
+              <td>4</td><td>MOVE [EE+YY] C→B</td>
+              <td>—</td><td>XX, EE</td><td>—</td><td>ZZ</td>
+              <td>YY</td><td>B</td>
+            </tr>
+<tr>
+              <td>5</td><td>DECOUPLE YY on Track B</td>
+              <td>—</td><td>XX, EE, YY</td><td>—</td><td>ZZ</td>
+              <td>—</td><td>B</td>
+            </tr>
+<tr>
+              <td>6</td><td>MOVE [EE] B→D</td>
+              <td>—</td><td>XX, YY</td><td>—</td><td>ZZ, EE</td>
+              <td>—</td><td>D</td>
+            </tr>
+<tr>
+              <td>7</td><td>COUPLE ZZ on Track D</td>
+              <td>—</td><td>XX, YY</td><td>—</td><td>EE</td>
+              <td>ZZ</td><td>D</td>
+            </tr>
+<tr>
+              <td>8</td><td>FLY_SHUNT ZZ D→B (engine stays D)</td>
+              <td>—</td><td>XX, YY, ZZ</td><td>—</td><td>EE</td>
+              <td>—</td><td>D</td>
+            </tr>
+<tr>
+              <td>9</td><td>MOVE [EE] D→B</td>
+              <td>—</td><td>XX, YY, ZZ, EE</td><td>—</td><td>—</td>
+              <td>—</td><td>B</td>
+            </tr>
+<tr>
+              <td>10</td><td>COUPLE XX on Track B</td>
+              <td>—</td><td>YY, ZZ, EE</td><td>—</td><td>—</td>
+              <td>XX</td><td>B</td>
+            </tr>
+<tr>
+              <td>11</td><td>COUPLE ZZ on Track B</td>
+              <td>—</td><td>YY, EE</td><td>—</td><td>—</td>
+              <td>XX, ZZ</td><td>B</td>
+            </tr>
+<tr>
+              <td>12</td><td>FLY_SHUNT XX B→D (engine stays B)</td>
+              <td>—</td><td>YY, EE</td><td>—</td><td>XX</td>
+              <td>ZZ</td><td>B</td>
+            </tr>
+<tr>
+              <td>13</td><td>MOVE [EE+ZZ] B→A</td>
+              <td>EE</td><td>YY</td><td>—</td><td>XX</td>
+              <td>ZZ</td><td>A</td>
+            </tr>
+<tr>
+              <td>14</td><td>FLY_SHUNT ZZ A→C (engine stays A)</td>
+              <td>EE</td><td>YY</td><td>ZZ</td><td>XX</td>
+              <td>—</td><td>A</td>
+            </tr>
+
+          </table>
+          </div>
+        </div>
+        
+        <div class="page">
+          <div class="header-bar green">SOLUTION 5 — Goal: A=['EE'], B=['ZZ'], C=['XX'], D=['YY']</div>
+          <p style="margin-bottom:10px;"><b>Actions: 12</b> |
+             <b>Reversals: 2</b></p>
+
+          <div class="two-col">
+            <div>
+              <h3 style="margin:10px 0 5px;">Solution Flowchart</h3>
+              <div style="border:2px solid #1a237e;border-radius:6px;padding:15px;background:#fafafa;">
+                <div style="background:#ef9a9a;border:2px solid #c62828;border-radius:20px;padding:6px;
+                  text-align:center;font-weight:bold;margin-bottom:5px;">START</div>
+                <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+                
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">1</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE] A→B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">2</span>
+              <div style="background:#e3f2fd;border:2px solid #1565c0;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>COUPLE</b>: COUPLE XX on Track B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">3</span>
+              <div style="background:#fff3e0;border:2px solid #e65100;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>FLY_SHUNT</b>: FLY_SHUNT XX B→C (engine stays B)
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">4</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE] B→D
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">5</span>
+              <div style="background:#e3f2fd;border:2px solid #1565c0;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>COUPLE</b>: COUPLE ZZ on Track D
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">6</span>
+              <div style="background:#fff3e0;border:2px solid #e65100;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>FLY_SHUNT</b>: FLY_SHUNT ZZ D→B (engine stays D)
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">7</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE] D→B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">8</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE] B→C
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">9</span>
+              <div style="background:#e3f2fd;border:2px solid #1565c0;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>COUPLE</b>: COUPLE YY on Track C
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">10</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE+YY] C→B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">11</span>
+              <div style="background:#fff3e0;border:2px solid #e65100;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>FLY_SHUNT</b>: FLY_SHUNT YY B→D (engine stays B)
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">12</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE] B→A
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+                <div style="background:#ef9a9a;border:2px solid #c62828;border-radius:20px;padding:6px;
+                  text-align:center;font-weight:bold;margin-top:5px;">END ✓</div>
+              </div>
+            </div>
+            <div>
+              <h3 style="margin:10px 0 5px;">Final State Validation (Module ⑩)</h3>
+              <table><tr><th>Track</th><th>Expected</th><th>Actual</th><th>Status</th></tr>
+                <tr>
+              <td>Track A</td><td>['EE']</td><td>['EE']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+<tr>
+              <td>Track B</td><td>['ZZ']</td><td>['ZZ']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+<tr>
+              <td>Track C</td><td>['XX']</td><td>['XX']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+<tr>
+              <td>Track D</td><td>['YY']</td><td>['YY']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+</table>
+
+              <h3 style="margin:15px 0 5px;">Capacity Checks (Module ⑤)</h3>
+              <table><tr><th>Route</th><th>Capacity</th><th>Length</th><th>Status</th></tr>
+                <tr><td>A→B</td><td>24m</td><td>16m</td><td>✓ PASS</td></tr>
+<tr><td>B→C</td><td>∞</td><td>8m</td><td>✓ PASS</td></tr>
+<tr><td>B→D</td><td>16m</td><td>16m</td><td>✓ PASS</td></tr>
+<tr><td>D→B</td><td>16m</td><td>8m</td><td>✓ PASS</td></tr>
+<tr><td>D→B</td><td>16m</td><td>16m</td><td>✓ PASS</td></tr>
+<tr><td>B→C</td><td>∞</td><td>16m</td><td>✓ PASS</td></tr>
+<tr><td>C→B</td><td>∞</td><td>24m</td><td>✓ PASS</td></tr>
+<tr><td>B→D</td><td>16m</td><td>8m</td><td>✓ PASS</td></tr>
+<tr><td>B→A</td><td>24m</td><td>16m</td><td>✓ PASS</td></tr>
+</table>
+
+              <h3 style="margin:15px 0 5px;">Reversal Analysis (Module ⑨)</h3>
+              <table><tr><th>Direction</th><th>Previous</th><th>Reversal?</th></tr>
+                <tr><td>A→B</td><td>—</td><td>no</td></tr>
+<tr><td>B→C</td><td>A→B</td><td>no</td></tr>
+<tr><td>B→D</td><td>B→C</td><td>no</td></tr>
+<tr><td>D→B</td><td>B→D</td><td><b style='color:#c62828'>YES (#1)</b></td></tr>
+<tr><td>D→B</td><td>D→B</td><td>no</td></tr>
+<tr><td>B→C</td><td>D→B</td><td>no</td></tr>
+<tr><td>C→B</td><td>B→C</td><td><b style='color:#c62828'>YES (#2)</b></td></tr>
+<tr><td>B→D</td><td>C→B</td><td>no</td></tr>
+<tr><td>B→A</td><td>B→D</td><td>no</td></tr>
+</table>
+            </div>
+          </div>
+
+          <h3 style="margin:15px 0 5px;">State Transition Table (Module ⑧)</h3>
+          <div style="overflow-x:auto;">
+          <table style="font-size:12px;">
+            <tr><th>Step</th><th>Action</th><th>Track A</th><th>Track B</th><th>Track C</th><th>Track D</th><th>Coupled</th><th>Engine On</th></tr>
+            <tr>
+              <td>0</td><td>Initial State</td>
+              <td>EE</td><td>XX</td><td>YY</td><td>ZZ</td>
+              <td>—</td><td>A</td>
+            </tr>
+<tr>
+              <td>1</td><td>MOVE [EE] A→B</td>
+              <td>—</td><td>XX, EE</td><td>YY</td><td>ZZ</td>
+              <td>—</td><td>B</td>
+            </tr>
+<tr>
+              <td>2</td><td>COUPLE XX on Track B</td>
+              <td>—</td><td>EE</td><td>YY</td><td>ZZ</td>
+              <td>XX</td><td>B</td>
+            </tr>
+<tr>
+              <td>3</td><td>FLY_SHUNT XX B→C (engine stays B)</td>
+              <td>—</td><td>EE</td><td>YY, XX</td><td>ZZ</td>
+              <td>—</td><td>B</td>
+            </tr>
+<tr>
+              <td>4</td><td>MOVE [EE] B→D</td>
+              <td>—</td><td>—</td><td>YY, XX</td><td>ZZ, EE</td>
+              <td>—</td><td>D</td>
+            </tr>
+<tr>
+              <td>5</td><td>COUPLE ZZ on Track D</td>
+              <td>—</td><td>—</td><td>YY, XX</td><td>EE</td>
+              <td>ZZ</td><td>D</td>
+            </tr>
+<tr>
+              <td>6</td><td>FLY_SHUNT ZZ D→B (engine stays D)</td>
+              <td>—</td><td>ZZ</td><td>YY, XX</td><td>EE</td>
+              <td>—</td><td>D</td>
+            </tr>
+<tr>
+              <td>7</td><td>MOVE [EE] D→B</td>
+              <td>—</td><td>ZZ, EE</td><td>YY, XX</td><td>—</td>
+              <td>—</td><td>B</td>
+            </tr>
+<tr>
+              <td>8</td><td>MOVE [EE] B→C</td>
+              <td>—</td><td>ZZ</td><td>YY, XX, EE</td><td>—</td>
+              <td>—</td><td>C</td>
+            </tr>
+<tr>
+              <td>9</td><td>COUPLE YY on Track C</td>
+              <td>—</td><td>ZZ</td><td>XX, EE</td><td>—</td>
+              <td>YY</td><td>C</td>
+            </tr>
+<tr>
+              <td>10</td><td>MOVE [EE+YY] C→B</td>
+              <td>—</td><td>ZZ, EE</td><td>XX</td><td>—</td>
+              <td>YY</td><td>B</td>
+            </tr>
+<tr>
+              <td>11</td><td>FLY_SHUNT YY B→D (engine stays B)</td>
+              <td>—</td><td>ZZ, EE</td><td>XX</td><td>YY</td>
+              <td>—</td><td>B</td>
+            </tr>
+<tr>
+              <td>12</td><td>MOVE [EE] B→A</td>
+              <td>EE</td><td>ZZ</td><td>XX</td><td>YY</td>
+              <td>—</td><td>A</td>
+            </tr>
+
+          </table>
+          </div>
+        </div>
+        
+        <div class="page">
+          <div class="header-bar green">SOLUTION 6 — Goal: A=['EE'], B=['ZZ'], C=['YY'], D=['XX']</div>
+          <p style="margin-bottom:10px;"><b>Actions: 8</b> |
+             <b>Reversals: 2</b></p>
+
+          <div class="two-col">
+            <div>
+              <h3 style="margin:10px 0 5px;">Solution Flowchart</h3>
+              <div style="border:2px solid #1a237e;border-radius:6px;padding:15px;background:#fafafa;">
+                <div style="background:#ef9a9a;border:2px solid #c62828;border-radius:20px;padding:6px;
+                  text-align:center;font-weight:bold;margin-bottom:5px;">START</div>
+                <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+                
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">1</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE] A→B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">2</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE] B→D
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">3</span>
+              <div style="background:#e3f2fd;border:2px solid #1565c0;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>COUPLE</b>: COUPLE ZZ on Track D
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">4</span>
+              <div style="background:#fff3e0;border:2px solid #e65100;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>FLY_SHUNT</b>: FLY_SHUNT ZZ D→B (engine stays D)
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">5</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE] D→B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">6</span>
+              <div style="background:#e3f2fd;border:2px solid #1565c0;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>COUPLE</b>: COUPLE XX on Track B
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">7</span>
+              <div style="background:#fff3e0;border:2px solid #e65100;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>FLY_SHUNT</b>: FLY_SHUNT XX B→D (engine stays B)
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
+              <span style="background:#1a237e;color:#fff;border-radius:50%;width:28px;height:28px;
+                display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;
+                flex-shrink:0;">8</span>
+              <div style="background:#c8e6c9;border:2px solid #2e7d32;padding:6px 12px;border-radius:4px;
+                flex:1;font-size:13px;">
+                <b>MOVE</b>: MOVE [EE] B→A
+              </div>
+            </div>
+            <div style="width:2px;height:12px;background:#333;margin:0 0 0 13px;"></div>
+            
+                <div style="background:#ef9a9a;border:2px solid #c62828;border-radius:20px;padding:6px;
+                  text-align:center;font-weight:bold;margin-top:5px;">END ✓</div>
+              </div>
+            </div>
+            <div>
+              <h3 style="margin:10px 0 5px;">Final State Validation (Module ⑩)</h3>
+              <table><tr><th>Track</th><th>Expected</th><th>Actual</th><th>Status</th></tr>
+                <tr>
+              <td>Track A</td><td>['EE']</td><td>['EE']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+<tr>
+              <td>Track B</td><td>['ZZ']</td><td>['ZZ']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+<tr>
+              <td>Track C</td><td>['YY']</td><td>['YY']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+<tr>
+              <td>Track D</td><td>['XX']</td><td>['XX']</td>
+              <td style="color:#2e7d32;font-weight:bold">
+                ✓ PASS</td>
+            </tr>
+</table>
+
+              <h3 style="margin:15px 0 5px;">Capacity Checks (Module ⑤)</h3>
+              <table><tr><th>Route</th><th>Capacity</th><th>Length</th><th>Status</th></tr>
+                <tr><td>A→B</td><td>24m</td><td>16m</td><td>✓ PASS</td></tr>
+<tr><td>B→D</td><td>16m</td><td>16m</td><td>✓ PASS</td></tr>
+<tr><td>D→B</td><td>16m</td><td>8m</td><td>✓ PASS</td></tr>
+<tr><td>D→B</td><td>16m</td><td>16m</td><td>✓ PASS</td></tr>
+<tr><td>B→D</td><td>16m</td><td>8m</td><td>✓ PASS</td></tr>
+<tr><td>B→A</td><td>24m</td><td>16m</td><td>✓ PASS</td></tr>
+</table>
+
+              <h3 style="margin:15px 0 5px;">Reversal Analysis (Module ⑨)</h3>
+              <table><tr><th>Direction</th><th>Previous</th><th>Reversal?</th></tr>
+                <tr><td>A→B</td><td>—</td><td>no</td></tr>
+<tr><td>B→D</td><td>A→B</td><td>no</td></tr>
+<tr><td>D→B</td><td>B→D</td><td><b style='color:#c62828'>YES (#1)</b></td></tr>
+<tr><td>D→B</td><td>D→B</td><td>no</td></tr>
+<tr><td>B→D</td><td>D→B</td><td><b style='color:#c62828'>YES (#2)</b></td></tr>
+<tr><td>B→A</td><td>B→D</td><td>no</td></tr>
+</table>
+            </div>
+          </div>
+
+          <h3 style="margin:15px 0 5px;">State Transition Table (Module ⑧)</h3>
+          <div style="overflow-x:auto;">
+          <table style="font-size:12px;">
+            <tr><th>Step</th><th>Action</th><th>Track A</th><th>Track B</th><th>Track C</th><th>Track D</th><th>Coupled</th><th>Engine On</th></tr>
+            <tr>
+              <td>0</td><td>Initial State</td>
+              <td>EE</td><td>XX</td><td>YY</td><td>ZZ</td>
+              <td>—</td><td>A</td>
+            </tr>
+<tr>
+              <td>1</td><td>MOVE [EE] A→B</td>
+              <td>—</td><td>XX, EE</td><td>YY</td><td>ZZ</td>
+              <td>—</td><td>B</td>
+            </tr>
+<tr>
+              <td>2</td><td>MOVE [EE] B→D</td>
+              <td>—</td><td>XX</td><td>YY</td><td>ZZ, EE</td>
+              <td>—</td><td>D</td>
+            </tr>
+<tr>
+              <td>3</td><td>COUPLE ZZ on Track D</td>
+              <td>—</td><td>XX</td><td>YY</td><td>EE</td>
+              <td>ZZ</td><td>D</td>
+            </tr>
+<tr>
+              <td>4</td><td>FLY_SHUNT ZZ D→B (engine stays D)</td>
+              <td>—</td><td>XX, ZZ</td><td>YY</td><td>EE</td>
+              <td>—</td><td>D</td>
+            </tr>
+<tr>
+              <td>5</td><td>MOVE [EE] D→B</td>
+              <td>—</td><td>XX, ZZ, EE</td><td>YY</td><td>—</td>
+              <td>—</td><td>B</td>
+            </tr>
+<tr>
+              <td>6</td><td>COUPLE XX on Track B</td>
+              <td>—</td><td>ZZ, EE</td><td>YY</td><td>—</td>
+              <td>XX</td><td>B</td>
+            </tr>
+<tr>
+              <td>7</td><td>FLY_SHUNT XX B→D (engine stays B)</td>
+              <td>—</td><td>ZZ, EE</td><td>YY</td><td>XX</td>
+              <td>—</td><td>B</td>
+            </tr>
+<tr>
+              <td>8</td><td>MOVE [EE] B→A</td>
+              <td>EE</td><td>ZZ</td><td>YY</td><td>XX</td>
+              <td>—</td><td>A</td>
+            </tr>
+
+          </table>
+          </div>
+        </div>
+        
+
+</body></html>

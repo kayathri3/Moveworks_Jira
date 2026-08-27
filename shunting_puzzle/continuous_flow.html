@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Continuous Flow — Dynamic Shunting Puzzle</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:linear-gradient(135deg,#e8eaf6 0%,#f5f5f5 100%);
+  padding:20px;color:#222}
+
+.container{max-width:1100px;margin:0 auto;}
+
+/* Title */
+.main-title{background:linear-gradient(135deg,#1a237e,#283593);color:#fff;text-align:center;
+  padding:20px;border-radius:8px;font-size:22px;font-weight:bold;margin-bottom:0;}
+
+/* Connectors */
+.connector{display:flex;justify-content:center;padding:5px 0;}
+.arrow-down{width:3px;height:35px;background:#1a237e;position:relative;}
+.arrow-down::after{content:'▼';position:absolute;bottom:-12px;left:-6px;font-size:14px;color:#1a237e;}
+
+/* Sections */
+.section{background:#fff;border:2px solid #ccc;border-radius:8px;padding:20px;margin:0 auto;
+  box-shadow:0 2px 8px rgba(0,0,0,0.08);}
+.section-hdr{font-weight:bold;font-size:16px;padding:10px 15px;border-radius:5px;margin:-20px -20px 15px;
+  border-bottom:2px solid #ccc;}
+.section-hdr.blue{background:#e3f2fd;color:#0d47a1;border-color:#90caf9;}
+.section-hdr.red{background:#ffebee;color:#b71c1c;border-color:#ef9a9a;}
+.section-hdr.green{background:#e8f5e9;color:#1b5e20;border-color:#a5d6a7;}
+.section-hdr.orange{background:#fff3e0;color:#e65100;border-color:#ffcc80;}
+
+/* Tables */
+table{width:100%;border-collapse:collapse;margin:8px 0;font-size:13px}
+th{background:#e8eaf6;padding:6px 8px;border:1px solid #bbb;text-align:left}
+td{padding:6px 8px;border:1px solid #ddd}
+.safe{color:#2e7d32;font-weight:bold}
+.risk{color:#c62828;font-weight:bold}
+
+/* Flow */
+.flow-text{font-family:Consolas,monospace;font-size:12px;background:#fafafa;border:1px solid #ddd;
+  padding:12px;border-radius:4px;white-space:pre;line-height:1.4;overflow-x:auto}
+
+/* Step boxes */
+.flow-col{margin:10px 0;padding:10px;background:#fafafa;border:1px solid #e0e0e0;border-radius:6px}
+.flow-title{font-weight:bold;color:#1a237e;margin-bottom:8px;font-size:14px}
+.start-end{background:#ef9a9a;border:2px solid #c62828;border-radius:25px;padding:8px 20px;
+  text-align:center;font-weight:bold;font-size:13px;max-width:600px;margin:0 auto}
+.step-box{display:flex;align-items:stretch;border:2px solid #999;border-radius:6px;overflow:hidden;
+  margin:0 auto;max-width:700px}
+.step-num{background:#1a237e;color:#fff;font-weight:bold;font-size:15px;
+  width:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-body{padding:6px 12px;flex:1}
+.step-action{font-size:13px}
+.step-state{font-size:11px;color:#555;margin-top:2px}
+.step-arrow{width:3px;height:14px;background:#666;margin:0 auto}
+
+/* Info boxes */
+.info-box{padding:8px 15px;border-radius:4px;text-align:center;font-weight:bold;margin:8px 0;font-size:13px}
+.info-box.green{background:#c8e6c9;color:#1b5e20;border:1px solid #a5d6a7}
+.info-box.red{background:#ffcdd2;color:#b71c1c;border:1px solid #ef9a9a}
+
+/* Grids */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin:10px 0}
+.sub-title{font-weight:bold;color:#1a237e;font-size:14px;margin:10px 0 5px}
+
+/* Module boxes */
+.mod-box{border:2px solid #f9a825;background:#fffde7;border-radius:6px;padding:12px;margin:8px 0}
+.mod-hdr{font-weight:bold;font-size:14px;color:#e65100;margin-bottom:6px}
+
+ul{padding-left:18px;margin:4px 0} li{font-size:13px;margin:2px 0}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ═══ TITLE ═══ -->
+<div class="main-title">
+  DYNAMIC SHUNTING PUZZLE SOLVER — CONTINUOUS FLOW<br>
+  <span style="font-size:14px;font-weight:normal">
+    Tracks: A, B, C, D | Engine: EE (16m) |
+    Wagons: XX(8m), YY(8m), ZZ(8m) |
+    Solutions: 6
+  </span>
+</div>
+<div class="connector"><div class="arrow-down"></div></div>
+
+<!-- ═══ SECTION 1: INITIALIZATION ═══ -->
+<div class="section">
+  <div class="section-hdr blue">① INITIALIZATION — System Configuration</div>
+  <div class="two-col">
+    <div>
+      <div class="sub-title">Rolling Stock</div>
+      <table><tr><th>Name</th><th>Role</th><th>Length</th><th>Start</th></tr><tr><td>EE</td><td>Engine</td><td>16m</td><td>Track A</td></tr>
+<tr><td>XX</td><td>Wagon</td><td>8m</td><td>Track B</td></tr>
+<tr><td>YY</td><td>Wagon</td><td>8m</td><td>Track C</td></tr>
+<tr><td>ZZ</td><td>Wagon</td><td>8m</td><td>Track D</td></tr>
+</table>
+      <div class="sub-title">Junction Capacity Matrix</div>
+      <table><tr><th>Route</th><th>Capacity</th><th>EE alone</th><th>+1 wagon</th><th>+2 wagons</th><th>Wagon alone</th></tr>
+        <tr><td>A ↔ B</td><td>24m</td><td>✓</td><td>✓</td><td>✗</td><td>✓</td></tr>
+<tr><td>A ↔ C</td><td>8m</td><td>✗</td><td>✗</td><td>✗</td><td>✓</td></tr>
+<tr><td>B ↔ C</td><td>∞</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+<tr><td>B ↔ D</td><td>16m</td><td>✓</td><td>✗</td><td>✗</td><td>✓</td></tr>
+</table>
+    </div>
+    <div>
+      <div class="sub-title">④ Deadlock Analysis Per Track</div>
+      <table><tr><th>Track</th><th>Available Exits</th><th>Status</th></tr><tr><td>Track A</td><td>B(24m ✓), C(8m ✗)</td><td class="safe">SAFE</td></tr>
+<tr><td>Track B</td><td>A(24m ✓), C(∞ ✓), D(16m ✓)</td><td class="safe">SAFE</td></tr>
+<tr><td>Track C</td><td>B(∞ ✓), A(8m ✗)</td><td class="safe">SAFE</td></tr>
+<tr><td>Track D</td><td>B(16m ✓)</td><td class="safe">SAFE</td></tr>
+</table>
+      <div class="sub-title">Siding Limits</div>
+      <table><tr><th>Track</th><th>Limit</th></tr>
+        <tr><td>Track D</td><td>Max 1 wagon(s)</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+<div class="connector"><div class="arrow-down"></div></div>
+
+<!-- ═══ SECTION 2: MASTER FLOWCHART ═══ -->
+<div class="section">
+  <div class="section-hdr blue">MASTER FLOWCHART — Module Execution Loop</div>
+  <div class="two-col" style="grid-template-columns:55% 45%">
+    <div class="flow-text">
+                    ┌─────────┐
+                    │  START  │
+                    └────┬────┘
+                         │
+                ┌────────▼────────┐
+           ①   │ INITIALIZATION  │
+                └────────┬────────┘
+                         │
+            ┌────────────▼────────────┐
+       ②   │   TERMINATION CHECK     │
+            └────────────┬────────────┘
+                         │
+                ◇ Goal satisfied? ◇
+               ╱                   ╲
+         YES  ╱                     ╲  NO
+             ╱                       ╲
+  ┌──────────▼─────────┐    ┌────────▼──────────────┐
+⑩│ FINAL VALIDATION   │  ③│ SELECT NEXT LEGAL     │
+  └──────────┬─────────┘    │ ACTION                │
+             │              └────────┬──────────────┘
+    ◇ All OK? ◇                     │
+   ╱           ╲           ┌────────▼────────┐
+ YES           NO        ④│ DEADLOCK CHECK  │
+  │             │          └────────┬────────┘
+  ▼             ▼                   │
+┌─────┐   Back to ③      ◇ Deadlocked? ◇
+│ END │                  ╱               ╲
+└─────┘                YES               NO
+                         │                │
+              ┌──────────▼───┐   ┌────────▼────────┐
+              │REJECT → ③   │ ⑤│VALIDATE CAPACITY│
+              └──────────────┘   └────────┬────────┘
+                                          │
+                                 ◇ Valid? ◇
+                                ╱          ╲
+                              YES          NO
+                               │      ┌────▼────────┐
+                      ┌────────▼──┐   │REJECT → ③  │
+                 ⑥   │COUPLE /   │   └─────────────┘
+                      │DECOUPLE   │
+                      └────────┬──┘
+                      ┌────────▼──────┐
+                 ⑦   │ MOVE ENGINE / │
+                      │ FLY_SHUNT    │
+                      └────────┬──────┘
+                      ┌────────▼──────┐
+                 ⑧   │ STATE UPDATE  │
+                      └────────┬──────┘
+                      ┌────────▼──────────┐
+                 ⑨   │REVERSAL COUNT UPD │
+                      └────────┬──────────┘
+                               │
+                               └──→ back to ②
+    </div>
+    <div>
+      <div class="mod-box">
+        <div class="mod-hdr">③ SELECT NEXT LEGAL ACTION</div>
+        <div class="flow-text" style="font-size:11px">
+ ◇ Wagon on engine's track? ◇
+╱                              ╲
+YES                            NO
+ │                              │
+ ▼                              ▼
+COUPLE it              ◇ Coupled wagon
+                       │ needs to move? ◇
+                      ╱                  ╲
+                    YES                  NO
+                     │                    │
+                     ▼                    ▼
+              MOVE or FLY_SHUNT    MOVE engine
+              (depends on junction  alone to reach
+               capacity)           next wagon
+        </div>
+      </div>
+      <div class="mod-box">
+        <div class="mod-hdr">⑤ VALIDATE CAPACITY — Decision Chain</div>
+        <div class="flow-text" style="font-size:11px">
+ ◇ consist ≤ junction cap? ◇
+╱                            ╲
+YES                          NO → REJECT
+ │
+ ◇ coupled ≤ max (2)? ◇
+╱                              ╲
+YES                            NO → REJECT
+ │
+ ◇ siding limits OK? ◇
+╱                      ╲
+YES                    NO → REJECT
+ │
+ ▼
+PASS → ⑥ COUPLE/DECOUPLE
+        </div>
+      </div>
+      <div class="mod-box">
+        <div class="mod-hdr">⑩ FINAL VALIDATION — Decision Chain</div>
+        <div class="flow-text" style="font-size:11px">
+ ◇ Every item at goal? ◇
+╱                        ╲
+YES                      NO → FAIL
+ │
+ ◇ Nothing coupled? ◇
+╱                     ╲
+YES                   NO → FAIL
+ │
+ ◇ No constraint violated? ◇
+╱                             ╲
+YES                           NO → FAIL
+ │
+ ▼
+ END ✓
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="connector"><div class="arrow-down"></div></div>
+
+<!-- ═══ SECTION 3: ALL SOLUTIONS ═══ -->
+<div class="section">
+  <div class="section-hdr orange">ALL POSSIBLE GOAL PERMUTATIONS — 6 Configurations</div>
+  <table>
+    <tr><th>#</th><th>Goal Configuration</th><th>Actions</th><th>Reversals</th><th>Status</th></tr>
+    <tr><td>1</td><td>A=['EE'] | B=['XX'] | C=['YY'] | D=['ZZ']</td><td>0</td><td>0</td><td class="safe">✓ SOLVED</td></tr>
+<tr><td>2</td><td>A=['EE'] | B=['XX'] | C=['ZZ'] | D=['YY']</td><td>12</td><td>2</td><td class="safe">✓ SOLVED</td></tr>
+<tr><td>3</td><td>A=['EE'] | B=['YY'] | C=['XX'] | D=['ZZ']</td><td>8</td><td>1</td><td class="safe">✓ SOLVED</td></tr>
+<tr><td>4</td><td>A=['EE'] | B=['YY'] | C=['ZZ'] | D=['XX']</td><td>14</td><td>3</td><td class="safe">✓ SOLVED</td></tr>
+<tr><td>5</td><td>A=['EE'] | B=['ZZ'] | C=['XX'] | D=['YY']</td><td>12</td><td>2</td><td class="safe">✓ SOLVED</td></tr>
+<tr><td>6</td><td>A=['EE'] | B=['ZZ'] | C=['YY'] | D=['XX']</td><td>8</td><td>2</td><td class="safe">✓ SOLVED</td></tr>
+
+  </table>
+</div>
+<div class="connector"><div class="arrow-down"></div></div>
+
+<!-- ═══ INDIVIDUAL SOLUTIONS ═══ -->
+
+            <div class="section" id="sol1">
+              <div class="section-hdr green">SOLUTION 1: A=['EE'] | B=['XX'] | C=['YY'] | D=['ZZ']</div>
+              <div class="info-box green">Already at goal — 0 actions needed.</div>
+            </div>
+            <div class="connector"><div class="arrow-down"></div></div>
+        <div class="section" id="sol2">
+          <div class="section-hdr green">SOLUTION 2: A=['EE'] | B=['XX'] | C=['ZZ'] | D=['YY'] — 12 actions, 2 reversals</div>
+
+          <div class="flow-col">
+            <div class="flow-title">EXECUTION FLOWCHART</div>
+            <div class="start-end">START — Initial: A=['EE'] | B=['XX'] | C=['YY'] | D=['ZZ']</div>
+            <div class="step-arrow"></div>
+            
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">1</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE] A→B</div>
+                <div class="step-state">State: A=— | B=XX,EE | C=YY | D=ZZ | Coupled: — | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">2</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE] B→D</div>
+                <div class="step-state">State: A=— | B=XX | C=YY | D=ZZ,EE | Coupled: — | Engine: D</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#e3f2fd;border-color:#1565c0;">
+              <div class="step-num">3</div>
+              <div class="step-body">
+                <div class="step-action"><b>COUPLE</b>: COUPLE ZZ on Track D</div>
+                <div class="step-state">State: A=— | B=XX | C=YY | D=EE | Coupled: ZZ | Engine: D</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#fff3e0;border-color:#e65100;">
+              <div class="step-num">4</div>
+              <div class="step-body">
+                <div class="step-action"><b>FLY_SHUNT</b>: FLY_SHUNT ZZ D→B (engine stays D)</div>
+                <div class="step-state">State: A=— | B=XX,ZZ | C=YY | D=EE | Coupled: — | Engine: D</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">5</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE] D→B</div>
+                <div class="step-state">State: A=— | B=XX,ZZ,EE | C=YY | D=— | Coupled: — | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#e3f2fd;border-color:#1565c0;">
+              <div class="step-num">6</div>
+              <div class="step-body">
+                <div class="step-action"><b>COUPLE</b>: COUPLE ZZ on Track B</div>
+                <div class="step-state">State: A=— | B=XX,EE | C=YY | D=— | Coupled: ZZ | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">7</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE+ZZ] B→C</div>
+                <div class="step-state">State: A=— | B=XX | C=YY,EE | D=— | Coupled: ZZ | Engine: C</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#e3f2fd;border-color:#1565c0;">
+              <div class="step-num">8</div>
+              <div class="step-body">
+                <div class="step-action"><b>COUPLE</b>: COUPLE YY on Track C</div>
+                <div class="step-state">State: A=— | B=XX | C=EE | D=— | Coupled: ZZ,YY | Engine: C</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#e3f2fd;border-color:#1565c0;">
+              <div class="step-num">9</div>
+              <div class="step-body">
+                <div class="step-action"><b>DECOUPLE</b>: DECOUPLE ZZ on Track C</div>
+                <div class="step-state">State: A=— | B=XX | C=EE,ZZ | D=— | Coupled: YY | Engine: C</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">10</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE+YY] C→B</div>
+                <div class="step-state">State: A=— | B=XX,EE | C=ZZ | D=— | Coupled: YY | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#fff3e0;border-color:#e65100;">
+              <div class="step-num">11</div>
+              <div class="step-body">
+                <div class="step-action"><b>FLY_SHUNT</b>: FLY_SHUNT YY B→D (engine stays B)</div>
+                <div class="step-state">State: A=— | B=XX,EE | C=ZZ | D=YY | Coupled: — | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">12</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE] B→A</div>
+                <div class="step-state">State: A=EE | B=XX | C=ZZ | D=YY | Coupled: — | Engine: A</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="start-end" style="background:#a5d6a7;">END ✓ — Goal Reached</div>
+          </div>
+
+          <div class="detail-grid">
+            <div>
+              <div class="sub-title">⑤ Capacity Checks</div>
+              <table><tr><th>Route</th><th>Capacity</th><th>Length</th><th>OK?</th></tr><tr><td>A→B</td><td>24m</td><td>16m</td><td class="safe">✓</td></tr>
+<tr><td>B→D</td><td>16m</td><td>16m</td><td class="safe">✓</td></tr>
+<tr><td>D→B</td><td>16m</td><td>8m</td><td class="safe">✓</td></tr>
+<tr><td>D→B</td><td>16m</td><td>16m</td><td class="safe">✓</td></tr>
+<tr><td>B→C</td><td>∞</td><td>24m</td><td class="safe">✓</td></tr>
+<tr><td>C→B</td><td>∞</td><td>24m</td><td class="safe">✓</td></tr>
+<tr><td>B→D</td><td>16m</td><td>8m</td><td class="safe">✓</td></tr>
+<tr><td>B→A</td><td>24m</td><td>16m</td><td class="safe">✓</td></tr>
+</table>
+            </div>
+            <div>
+              <div class="sub-title">⑨ Reversal Analysis</div>
+              <table><tr><th>Direction</th><th>Previous</th><th>Reversed?</th></tr><tr><td>A→B</td><td>—</td><td class="">no</td></tr>
+<tr><td>B→D</td><td>A→B</td><td class="">no</td></tr>
+<tr><td>D→B</td><td>B→D</td><td class="risk">YES (#1)</td></tr>
+<tr><td>D→B</td><td>D→B</td><td class="">no</td></tr>
+<tr><td>B→C</td><td>D→B</td><td class="">no</td></tr>
+<tr><td>C→B</td><td>B→C</td><td class="risk">YES (#2)</td></tr>
+<tr><td>B→D</td><td>C→B</td><td class="">no</td></tr>
+<tr><td>B→A</td><td>B→D</td><td class="">no</td></tr>
+</table>
+            </div>
+          </div>
+
+          <div class="sub-title">⑩ Final Validation</div>
+          <table><tr><th>Track</th><th>Expected</th><th>Actual</th><th>Status</th></tr><tr><td>Track A</td><td>['EE']</td><td>['EE']</td><td class="safe">✓ PASS</td></tr>
+<tr><td>Track B</td><td>['XX']</td><td>['XX']</td><td class="safe">✓ PASS</td></tr>
+<tr><td>Track C</td><td>['ZZ']</td><td>['ZZ']</td><td class="safe">✓ PASS</td></tr>
+<tr><td>Track D</td><td>['YY']</td><td>['YY']</td><td class="safe">✓ PASS</td></tr>
+</table>
+          <div class="info-box green">ALL CHECKS PASSED ✓</div>
+        </div>
+        <div class="connector"><div class="arrow-down"></div></div>
+        <div class="section" id="sol3">
+          <div class="section-hdr green">SOLUTION 3: A=['EE'] | B=['YY'] | C=['XX'] | D=['ZZ'] — 8 actions, 1 reversals</div>
+
+          <div class="flow-col">
+            <div class="flow-title">EXECUTION FLOWCHART</div>
+            <div class="start-end">START — Initial: A=['EE'] | B=['XX'] | C=['YY'] | D=['ZZ']</div>
+            <div class="step-arrow"></div>
+            
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">1</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE] A→B</div>
+                <div class="step-state">State: A=— | B=XX,EE | C=YY | D=ZZ | Coupled: — | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#e3f2fd;border-color:#1565c0;">
+              <div class="step-num">2</div>
+              <div class="step-body">
+                <div class="step-action"><b>COUPLE</b>: COUPLE XX on Track B</div>
+                <div class="step-state">State: A=— | B=EE | C=YY | D=ZZ | Coupled: XX | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">3</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE+XX] B→C</div>
+                <div class="step-state">State: A=— | B=— | C=YY,EE | D=ZZ | Coupled: XX | Engine: C</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#e3f2fd;border-color:#1565c0;">
+              <div class="step-num">4</div>
+              <div class="step-body">
+                <div class="step-action"><b>COUPLE</b>: COUPLE YY on Track C</div>
+                <div class="step-state">State: A=— | B=— | C=EE | D=ZZ | Coupled: XX,YY | Engine: C</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#e3f2fd;border-color:#1565c0;">
+              <div class="step-num">5</div>
+              <div class="step-body">
+                <div class="step-action"><b>DECOUPLE</b>: DECOUPLE XX on Track C</div>
+                <div class="step-state">State: A=— | B=— | C=EE,XX | D=ZZ | Coupled: YY | Engine: C</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">6</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE+YY] C→B</div>
+                <div class="step-state">State: A=— | B=EE | C=XX | D=ZZ | Coupled: YY | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#e3f2fd;border-color:#1565c0;">
+              <div class="step-num">7</div>
+              <div class="step-body">
+                <div class="step-action"><b>DECOUPLE</b>: DECOUPLE YY on Track B</div>
+                <div class="step-state">State: A=— | B=EE,YY | C=XX | D=ZZ | Coupled: — | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">8</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE] B→A</div>
+                <div class="step-state">State: A=EE | B=YY | C=XX | D=ZZ | Coupled: — | Engine: A</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="start-end" style="background:#a5d6a7;">END ✓ — Goal Reached</div>
+          </div>
+
+          <div class="detail-grid">
+            <div>
+              <div class="sub-title">⑤ Capacity Checks</div>
+              <table><tr><th>Route</th><th>Capacity</th><th>Length</th><th>OK?</th></tr><tr><td>A→B</td><td>24m</td><td>16m</td><td class="safe">✓</td></tr>
+<tr><td>B→C</td><td>∞</td><td>24m</td><td class="safe">✓</td></tr>
+<tr><td>C→B</td><td>∞</td><td>24m</td><td class="safe">✓</td></tr>
+<tr><td>B→A</td><td>24m</td><td>16m</td><td class="safe">✓</td></tr>
+</table>
+            </div>
+            <div>
+              <div class="sub-title">⑨ Reversal Analysis</div>
+              <table><tr><th>Direction</th><th>Previous</th><th>Reversed?</th></tr><tr><td>A→B</td><td>—</td><td class="">no</td></tr>
+<tr><td>B→C</td><td>A→B</td><td class="">no</td></tr>
+<tr><td>C→B</td><td>B→C</td><td class="risk">YES (#1)</td></tr>
+<tr><td>B→A</td><td>C→B</td><td class="">no</td></tr>
+</table>
+            </div>
+          </div>
+
+          <div class="sub-title">⑩ Final Validation</div>
+          <table><tr><th>Track</th><th>Expected</th><th>Actual</th><th>Status</th></tr><tr><td>Track A</td><td>['EE']</td><td>['EE']</td><td class="safe">✓ PASS</td></tr>
+<tr><td>Track B</td><td>['YY']</td><td>['YY']</td><td class="safe">✓ PASS</td></tr>
+<tr><td>Track C</td><td>['XX']</td><td>['XX']</td><td class="safe">✓ PASS</td></tr>
+<tr><td>Track D</td><td>['ZZ']</td><td>['ZZ']</td><td class="safe">✓ PASS</td></tr>
+</table>
+          <div class="info-box green">ALL CHECKS PASSED ✓</div>
+        </div>
+        <div class="connector"><div class="arrow-down"></div></div>
+        <div class="section" id="sol4">
+          <div class="section-hdr green">SOLUTION 4: A=['EE'] | B=['YY'] | C=['ZZ'] | D=['XX'] — 14 actions, 3 reversals</div>
+
+          <div class="flow-col">
+            <div class="flow-title">EXECUTION FLOWCHART</div>
+            <div class="start-end">START — Initial: A=['EE'] | B=['XX'] | C=['YY'] | D=['ZZ']</div>
+            <div class="step-arrow"></div>
+            
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">1</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE] A→B</div>
+                <div class="step-state">State: A=— | B=XX,EE | C=YY | D=ZZ | Coupled: — | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">2</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE] B→C</div>
+                <div class="step-state">State: A=— | B=XX | C=YY,EE | D=ZZ | Coupled: — | Engine: C</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#e3f2fd;border-color:#1565c0;">
+              <div class="step-num">3</div>
+              <div class="step-body">
+                <div class="step-action"><b>COUPLE</b>: COUPLE YY on Track C</div>
+                <div class="step-state">State: A=— | B=XX | C=EE | D=ZZ | Coupled: YY | Engine: C</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">4</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE+YY] C→B</div>
+                <div class="step-state">State: A=— | B=XX,EE | C=— | D=ZZ | Coupled: YY | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#e3f2fd;border-color:#1565c0;">
+              <div class="step-num">5</div>
+              <div class="step-body">
+                <div class="step-action"><b>DECOUPLE</b>: DECOUPLE YY on Track B</div>
+                <div class="step-state">State: A=— | B=XX,EE,YY | C=— | D=ZZ | Coupled: — | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">6</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE] B→D</div>
+                <div class="step-state">State: A=— | B=XX,YY | C=— | D=ZZ,EE | Coupled: — | Engine: D</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#e3f2fd;border-color:#1565c0;">
+              <div class="step-num">7</div>
+              <div class="step-body">
+                <div class="step-action"><b>COUPLE</b>: COUPLE ZZ on Track D</div>
+                <div class="step-state">State: A=— | B=XX,YY | C=— | D=EE | Coupled: ZZ | Engine: D</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#fff3e0;border-color:#e65100;">
+              <div class="step-num">8</div>
+              <div class="step-body">
+                <div class="step-action"><b>FLY_SHUNT</b>: FLY_SHUNT ZZ D→B (engine stays D)</div>
+                <div class="step-state">State: A=— | B=XX,YY,ZZ | C=— | D=EE | Coupled: — | Engine: D</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">9</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE] D→B</div>
+                <div class="step-state">State: A=— | B=XX,YY,ZZ,EE | C=— | D=— | Coupled: — | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#e3f2fd;border-color:#1565c0;">
+              <div class="step-num">10</div>
+              <div class="step-body">
+                <div class="step-action"><b>COUPLE</b>: COUPLE XX on Track B</div>
+                <div class="step-state">State: A=— | B=YY,ZZ,EE | C=— | D=— | Coupled: XX | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#e3f2fd;border-color:#1565c0;">
+              <div class="step-num">11</div>
+              <div class="step-body">
+                <div class="step-action"><b>COUPLE</b>: COUPLE ZZ on Track B</div>
+                <div class="step-state">State: A=— | B=YY,EE | C=— | D=— | Coupled: XX,ZZ | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#fff3e0;border-color:#e65100;">
+              <div class="step-num">12</div>
+              <div class="step-body">
+                <div class="step-action"><b>FLY_SHUNT</b>: FLY_SHUNT XX B→D (engine stays B)</div>
+                <div class="step-state">State: A=— | B=YY,EE | C=— | D=XX | Coupled: ZZ | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">13</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE+ZZ] B→A</div>
+                <div class="step-state">State: A=EE | B=YY | C=— | D=XX | Coupled: ZZ | Engine: A</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#fff3e0;border-color:#e65100;">
+              <div class="step-num">14</div>
+              <div class="step-body">
+                <div class="step-action"><b>FLY_SHUNT</b>: FLY_SHUNT ZZ A→C (engine stays A)</div>
+                <div class="step-state">State: A=EE | B=YY | C=ZZ | D=XX | Coupled: — | Engine: A</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="start-end" style="background:#a5d6a7;">END ✓ — Goal Reached</div>
+          </div>
+
+          <div class="detail-grid">
+            <div>
+              <div class="sub-title">⑤ Capacity Checks</div>
+              <table><tr><th>Route</th><th>Capacity</th><th>Length</th><th>OK?</th></tr><tr><td>A→B</td><td>24m</td><td>16m</td><td class="safe">✓</td></tr>
+<tr><td>B→C</td><td>∞</td><td>16m</td><td class="safe">✓</td></tr>
+<tr><td>C→B</td><td>∞</td><td>24m</td><td class="safe">✓</td></tr>
+<tr><td>B→D</td><td>16m</td><td>16m</td><td class="safe">✓</td></tr>
+<tr><td>D→B</td><td>16m</td><td>8m</td><td class="safe">✓</td></tr>
+<tr><td>D→B</td><td>16m</td><td>16m</td><td class="safe">✓</td></tr>
+<tr><td>B→D</td><td>16m</td><td>8m</td><td class="safe">✓</td></tr>
+<tr><td>B→A</td><td>24m</td><td>24m</td><td class="safe">✓</td></tr>
+<tr><td>A→C</td><td>8m</td><td>8m</td><td class="safe">✓</td></tr>
+</table>
+            </div>
+            <div>
+              <div class="sub-title">⑨ Reversal Analysis</div>
+              <table><tr><th>Direction</th><th>Previous</th><th>Reversed?</th></tr><tr><td>A→B</td><td>—</td><td class="">no</td></tr>
+<tr><td>B→C</td><td>A→B</td><td class="">no</td></tr>
+<tr><td>C→B</td><td>B→C</td><td class="risk">YES (#1)</td></tr>
+<tr><td>B→D</td><td>C→B</td><td class="">no</td></tr>
+<tr><td>D→B</td><td>B→D</td><td class="risk">YES (#2)</td></tr>
+<tr><td>D→B</td><td>D→B</td><td class="">no</td></tr>
+<tr><td>B→D</td><td>D→B</td><td class="risk">YES (#3)</td></tr>
+<tr><td>B→A</td><td>B→D</td><td class="">no</td></tr>
+<tr><td>A→C</td><td>B→A</td><td class="">no</td></tr>
+</table>
+            </div>
+          </div>
+
+          <div class="sub-title">⑩ Final Validation</div>
+          <table><tr><th>Track</th><th>Expected</th><th>Actual</th><th>Status</th></tr><tr><td>Track A</td><td>['EE']</td><td>['EE']</td><td class="safe">✓ PASS</td></tr>
+<tr><td>Track B</td><td>['YY']</td><td>['YY']</td><td class="safe">✓ PASS</td></tr>
+<tr><td>Track C</td><td>['ZZ']</td><td>['ZZ']</td><td class="safe">✓ PASS</td></tr>
+<tr><td>Track D</td><td>['XX']</td><td>['XX']</td><td class="safe">✓ PASS</td></tr>
+</table>
+          <div class="info-box green">ALL CHECKS PASSED ✓</div>
+        </div>
+        <div class="connector"><div class="arrow-down"></div></div>
+        <div class="section" id="sol5">
+          <div class="section-hdr green">SOLUTION 5: A=['EE'] | B=['ZZ'] | C=['XX'] | D=['YY'] — 12 actions, 2 reversals</div>
+
+          <div class="flow-col">
+            <div class="flow-title">EXECUTION FLOWCHART</div>
+            <div class="start-end">START — Initial: A=['EE'] | B=['XX'] | C=['YY'] | D=['ZZ']</div>
+            <div class="step-arrow"></div>
+            
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">1</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE] A→B</div>
+                <div class="step-state">State: A=— | B=XX,EE | C=YY | D=ZZ | Coupled: — | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#e3f2fd;border-color:#1565c0;">
+              <div class="step-num">2</div>
+              <div class="step-body">
+                <div class="step-action"><b>COUPLE</b>: COUPLE XX on Track B</div>
+                <div class="step-state">State: A=— | B=EE | C=YY | D=ZZ | Coupled: XX | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#fff3e0;border-color:#e65100;">
+              <div class="step-num">3</div>
+              <div class="step-body">
+                <div class="step-action"><b>FLY_SHUNT</b>: FLY_SHUNT XX B→C (engine stays B)</div>
+                <div class="step-state">State: A=— | B=EE | C=YY,XX | D=ZZ | Coupled: — | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">4</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE] B→D</div>
+                <div class="step-state">State: A=— | B=— | C=YY,XX | D=ZZ,EE | Coupled: — | Engine: D</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#e3f2fd;border-color:#1565c0;">
+              <div class="step-num">5</div>
+              <div class="step-body">
+                <div class="step-action"><b>COUPLE</b>: COUPLE ZZ on Track D</div>
+                <div class="step-state">State: A=— | B=— | C=YY,XX | D=EE | Coupled: ZZ | Engine: D</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#fff3e0;border-color:#e65100;">
+              <div class="step-num">6</div>
+              <div class="step-body">
+                <div class="step-action"><b>FLY_SHUNT</b>: FLY_SHUNT ZZ D→B (engine stays D)</div>
+                <div class="step-state">State: A=— | B=ZZ | C=YY,XX | D=EE | Coupled: — | Engine: D</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">7</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE] D→B</div>
+                <div class="step-state">State: A=— | B=ZZ,EE | C=YY,XX | D=— | Coupled: — | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">8</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE] B→C</div>
+                <div class="step-state">State: A=— | B=ZZ | C=YY,XX,EE | D=— | Coupled: — | Engine: C</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#e3f2fd;border-color:#1565c0;">
+              <div class="step-num">9</div>
+              <div class="step-body">
+                <div class="step-action"><b>COUPLE</b>: COUPLE YY on Track C</div>
+                <div class="step-state">State: A=— | B=ZZ | C=XX,EE | D=— | Coupled: YY | Engine: C</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">10</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE+YY] C→B</div>
+                <div class="step-state">State: A=— | B=ZZ,EE | C=XX | D=— | Coupled: YY | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#fff3e0;border-color:#e65100;">
+              <div class="step-num">11</div>
+              <div class="step-body">
+                <div class="step-action"><b>FLY_SHUNT</b>: FLY_SHUNT YY B→D (engine stays B)</div>
+                <div class="step-state">State: A=— | B=ZZ,EE | C=XX | D=YY | Coupled: — | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">12</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE] B→A</div>
+                <div class="step-state">State: A=EE | B=ZZ | C=XX | D=YY | Coupled: — | Engine: A</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="start-end" style="background:#a5d6a7;">END ✓ — Goal Reached</div>
+          </div>
+
+          <div class="detail-grid">
+            <div>
+              <div class="sub-title">⑤ Capacity Checks</div>
+              <table><tr><th>Route</th><th>Capacity</th><th>Length</th><th>OK?</th></tr><tr><td>A→B</td><td>24m</td><td>16m</td><td class="safe">✓</td></tr>
+<tr><td>B→C</td><td>∞</td><td>8m</td><td class="safe">✓</td></tr>
+<tr><td>B→D</td><td>16m</td><td>16m</td><td class="safe">✓</td></tr>
+<tr><td>D→B</td><td>16m</td><td>8m</td><td class="safe">✓</td></tr>
+<tr><td>D→B</td><td>16m</td><td>16m</td><td class="safe">✓</td></tr>
+<tr><td>B→C</td><td>∞</td><td>16m</td><td class="safe">✓</td></tr>
+<tr><td>C→B</td><td>∞</td><td>24m</td><td class="safe">✓</td></tr>
+<tr><td>B→D</td><td>16m</td><td>8m</td><td class="safe">✓</td></tr>
+<tr><td>B→A</td><td>24m</td><td>16m</td><td class="safe">✓</td></tr>
+</table>
+            </div>
+            <div>
+              <div class="sub-title">⑨ Reversal Analysis</div>
+              <table><tr><th>Direction</th><th>Previous</th><th>Reversed?</th></tr><tr><td>A→B</td><td>—</td><td class="">no</td></tr>
+<tr><td>B→C</td><td>A→B</td><td class="">no</td></tr>
+<tr><td>B→D</td><td>B→C</td><td class="">no</td></tr>
+<tr><td>D→B</td><td>B→D</td><td class="risk">YES (#1)</td></tr>
+<tr><td>D→B</td><td>D→B</td><td class="">no</td></tr>
+<tr><td>B→C</td><td>D→B</td><td class="">no</td></tr>
+<tr><td>C→B</td><td>B→C</td><td class="risk">YES (#2)</td></tr>
+<tr><td>B→D</td><td>C→B</td><td class="">no</td></tr>
+<tr><td>B→A</td><td>B→D</td><td class="">no</td></tr>
+</table>
+            </div>
+          </div>
+
+          <div class="sub-title">⑩ Final Validation</div>
+          <table><tr><th>Track</th><th>Expected</th><th>Actual</th><th>Status</th></tr><tr><td>Track A</td><td>['EE']</td><td>['EE']</td><td class="safe">✓ PASS</td></tr>
+<tr><td>Track B</td><td>['ZZ']</td><td>['ZZ']</td><td class="safe">✓ PASS</td></tr>
+<tr><td>Track C</td><td>['XX']</td><td>['XX']</td><td class="safe">✓ PASS</td></tr>
+<tr><td>Track D</td><td>['YY']</td><td>['YY']</td><td class="safe">✓ PASS</td></tr>
+</table>
+          <div class="info-box green">ALL CHECKS PASSED ✓</div>
+        </div>
+        <div class="connector"><div class="arrow-down"></div></div>
+        <div class="section" id="sol6">
+          <div class="section-hdr green">SOLUTION 6: A=['EE'] | B=['ZZ'] | C=['YY'] | D=['XX'] — 8 actions, 2 reversals</div>
+
+          <div class="flow-col">
+            <div class="flow-title">EXECUTION FLOWCHART</div>
+            <div class="start-end">START — Initial: A=['EE'] | B=['XX'] | C=['YY'] | D=['ZZ']</div>
+            <div class="step-arrow"></div>
+            
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">1</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE] A→B</div>
+                <div class="step-state">State: A=— | B=XX,EE | C=YY | D=ZZ | Coupled: — | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">2</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE] B→D</div>
+                <div class="step-state">State: A=— | B=XX | C=YY | D=ZZ,EE | Coupled: — | Engine: D</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#e3f2fd;border-color:#1565c0;">
+              <div class="step-num">3</div>
+              <div class="step-body">
+                <div class="step-action"><b>COUPLE</b>: COUPLE ZZ on Track D</div>
+                <div class="step-state">State: A=— | B=XX | C=YY | D=EE | Coupled: ZZ | Engine: D</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#fff3e0;border-color:#e65100;">
+              <div class="step-num">4</div>
+              <div class="step-body">
+                <div class="step-action"><b>FLY_SHUNT</b>: FLY_SHUNT ZZ D→B (engine stays D)</div>
+                <div class="step-state">State: A=— | B=XX,ZZ | C=YY | D=EE | Coupled: — | Engine: D</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">5</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE] D→B</div>
+                <div class="step-state">State: A=— | B=XX,ZZ,EE | C=YY | D=— | Coupled: — | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#e3f2fd;border-color:#1565c0;">
+              <div class="step-num">6</div>
+              <div class="step-body">
+                <div class="step-action"><b>COUPLE</b>: COUPLE XX on Track B</div>
+                <div class="step-state">State: A=— | B=ZZ,EE | C=YY | D=— | Coupled: XX | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#fff3e0;border-color:#e65100;">
+              <div class="step-num">7</div>
+              <div class="step-body">
+                <div class="step-action"><b>FLY_SHUNT</b>: FLY_SHUNT XX B→D (engine stays B)</div>
+                <div class="step-state">State: A=— | B=ZZ,EE | C=YY | D=XX | Coupled: — | Engine: B</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="step-box" style="background:#c8e6c9;border-color:#2e7d32;">
+              <div class="step-num">8</div>
+              <div class="step-body">
+                <div class="step-action"><b>MOVE</b>: MOVE [EE] B→A</div>
+                <div class="step-state">State: A=EE | B=ZZ | C=YY | D=XX | Coupled: — | Engine: A</div>
+              </div>
+            </div>
+            <div class="step-arrow"></div>
+            <div class="start-end" style="background:#a5d6a7;">END ✓ — Goal Reached</div>
+          </div>
+
+          <div class="detail-grid">
+            <div>
+              <div class="sub-title">⑤ Capacity Checks</div>
+              <table><tr><th>Route</th><th>Capacity</th><th>Length</th><th>OK?</th></tr><tr><td>A→B</td><td>24m</td><td>16m</td><td class="safe">✓</td></tr>
+<tr><td>B→D</td><td>16m</td><td>16m</td><td class="safe">✓</td></tr>
+<tr><td>D→B</td><td>16m</td><td>8m</td><td class="safe">✓</td></tr>
+<tr><td>D→B</td><td>16m</td><td>16m</td><td class="safe">✓</td></tr>
+<tr><td>B→D</td><td>16m</td><td>8m</td><td class="safe">✓</td></tr>
+<tr><td>B→A</td><td>24m</td><td>16m</td><td class="safe">✓</td></tr>
+</table>
+            </div>
+            <div>
+              <div class="sub-title">⑨ Reversal Analysis</div>
+              <table><tr><th>Direction</th><th>Previous</th><th>Reversed?</th></tr><tr><td>A→B</td><td>—</td><td class="">no</td></tr>
+<tr><td>B→D</td><td>A→B</td><td class="">no</td></tr>
+<tr><td>D→B</td><td>B→D</td><td class="risk">YES (#1)</td></tr>
+<tr><td>D→B</td><td>D→B</td><td class="">no</td></tr>
+<tr><td>B→D</td><td>D→B</td><td class="risk">YES (#2)</td></tr>
+<tr><td>B→A</td><td>B→D</td><td class="">no</td></tr>
+</table>
+            </div>
+          </div>
+
+          <div class="sub-title">⑩ Final Validation</div>
+          <table><tr><th>Track</th><th>Expected</th><th>Actual</th><th>Status</th></tr><tr><td>Track A</td><td>['EE']</td><td>['EE']</td><td class="safe">✓ PASS</td></tr>
+<tr><td>Track B</td><td>['ZZ']</td><td>['ZZ']</td><td class="safe">✓ PASS</td></tr>
+<tr><td>Track C</td><td>['YY']</td><td>['YY']</td><td class="safe">✓ PASS</td></tr>
+<tr><td>Track D</td><td>['XX']</td><td>['XX']</td><td class="safe">✓ PASS</td></tr>
+</table>
+          <div class="info-box green">ALL CHECKS PASSED ✓</div>
+        </div>
+        <div class="connector"><div class="arrow-down"></div></div>
+
+<!-- ═══ END ═══ -->
+<div class="section" style="text-align:center;background:#e8f5e9;border-color:#a5d6a7;">
+  <div style="font-size:20px;font-weight:bold;color:#1b5e20;">
+    ✓ ALL 6 SOLUTIONS COMPLETE
+  </div>
+  <div style="font-size:13px;color:#555;margin-top:5px;">
+    Best: 8 actions |
+    Worst: 14 actions |
+    Engine always returns to Track A
+  </div>
+</div>
+
+</div>
+</body></html>
