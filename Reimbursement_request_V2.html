@@ -144,7 +144,7 @@
       <div class="score-label">Impact Scores</div>
       <div class="score-row">
         <div class="score-item"><div class="score-val blue">2</div><div class="score-sub">Complexity</div></div>
-        <div class="score-item"><div class="score-val green">5</div><div class="score-sub">Value</div></div>
+        <div class="score-item"><div class="score-val green">4</div><div class="score-sub">Value</div></div>
       </div>
     </div>
   </div>
@@ -205,36 +205,22 @@
           <div class="step" data-tip="Moveworks confirms who the employee is and where the expense should be routed">
             <div class="step-icon-bg">🧑‍💼</div>
             <div class="step-num">05</div>
-            <div class="step-title">Confirm Employee & Cost Center</div>
-            <div class="step-desc">Confirms the employee's department, manager, and cost center so the request lands with the right approver automatically</div>
+            <div class="step-title">Confirms Employee details</div>
+            <div class="step-desc">Confirms the employee's department and manager so the request lands with the right approver automatically</div>
             <span class="step-tag" style="border-color:rgba(59,130,246,0.4);color:var(--accent-blue)">Smart Routing</span>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- DECISION: policy check -->
-    <div class="decision-row">
-      <div class="layer-label">
-        <div class="layer-name" style="color:var(--accent-orange)">Decision</div>
-        <div class="layer-system">Policy Check</div>
-      </div>
-      <div class="decision-body">
-        <div class="diamond">Within<br>Policy?</div>
-        <div class="branch">
-          <div class="branch-item branch-yes">
-            <span class="branch-label">✓ Within Policy</span>
-            Expense amount and category fall within standard reimbursement guidelines → sent straight to manager for approval
-          </div>
-          <div class="branch-item" style="border-color:rgba(245,158,11,0.4);background:rgba(245,158,11,0.06);color:#fcd34d">
-            <span class="branch-label" style="color:var(--accent-orange)">Exceeds Policy</span>
-            Amount is above the standard limit, or missing a receipt → flagged for additional finance review before approval
+          <div class="step" data-tip="Line items pulled from the receipt are mapped straight into the org's own expense template — before it ever reaches the manager">
+            <div class="step-icon-bg">📊</div>
+            <div class="step-num">06</div>
+            <div class="step-title">Org-Format Excel Sheet Generated</div>
+            <div class="step-desc">Extracted receipt line items — vendor, date, amount, category — are compiled automatically into an Excel file matching the org's standard reimbursement format, ready for the manager to review</div>
+            <span class="step-tag" style="border-color:rgba(59,130,246,0.4);color:var(--accent-blue)">Auto-Generated Excel</span>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="big-arrow"><div></div><div class="big-arrow-body"><div class="arrow-vert" style="--ac2:rgba(139,92,246,0.4)"></div><div class="arrow-segment" style="color:rgba(139,92,246,0.6)">↓ Request sent for approval, with all details and the receipt attached</div><div class="arrow-vert" style="--ac2:rgba(139,92,246,0.4)"></div></div></div>
+    <div class="big-arrow"><div></div><div class="big-arrow-body"><div class="arrow-vert" style="--ac2:rgba(139,92,246,0.4)"></div><div class="arrow-segment" style="color:rgba(139,92,246,0.6)">↓ Request sent for approval, with the receipt and generated Excel sheet attached</div><div class="arrow-vert" style="--ac2:rgba(139,92,246,0.4)"></div></div></div>
 
     <!-- LAYER 3: Manager Approval -->
     <div class="layer layer-kb">
@@ -244,18 +230,18 @@
       </div>
       <div class="layer-content">
         <div class="parallel-wrap">
-          <div class="parallel-source" style="--ps-color:var(--accent-purple)" data-tip="Manager gets a complete, ready-to-review summary — no digging through email">
+          <div class="parallel-source" style="--ps-color:var(--accent-purple)" data-tip="Manager gets a complete, ready-to-review package — no digging through email">
             <div class="step-icon-bg" style="background:rgba(139,92,246,0.12);border-color:rgba(139,92,246,0.25);color:var(--accent-purple)">📩</div>
-            <div class="ps-label">Step 06 · Notification</div>
+            <div class="ps-label">Step 07 · Notification</div>
             <div class="ps-name">Manager Notified in Teams</div>
-            <div class="ps-desc">Manager receives a clear summary of the request — who, what, how much, why — with the receipt attached for review</div>
+            <div class="ps-desc">Manager receives a clear summary of the request — who, what, how much, why — with the receipt and the generated Excel sheet attached for review</div>
             <span class="ps-tag" style="border-color:rgba(139,92,246,0.4);color:var(--accent-purple)">One-Click Review</span>
           </div>
           <div class="parallel-source" style="--ps-color:var(--accent-purple)" data-tip="Approval happens without ever leaving the chat">
             <div class="step-icon-bg" style="background:rgba(139,92,246,0.12);border-color:rgba(139,92,246,0.25);color:var(--accent-purple)">✅</div>
-            <div class="ps-label">Step 07 · Response</div>
-            <div class="ps-name">Manager Approves or Declines</div>
-            <div class="ps-desc">Manager taps Approve or Decline directly in Teams, optionally adding a comment or reason — no separate system to log into</div>
+            <div class="ps-label">Step 08 · Response</div>
+            <div class="ps-name">Manager Reviews Excel & Approves or Declines</div>
+            <div class="ps-desc">Manager checks the Excel breakdown against the receipt, then taps Approve or Decline directly in Teams, optionally adding a comment or reason — no separate system to log into</div>
             <span class="ps-tag" style="border-color:rgba(139,92,246,0.4);color:var(--accent-purple)">In-Chat Decision</span>
           </div>
         </div>
@@ -277,7 +263,7 @@
           </div>
           <div class="branch-item branch-no">
             <span class="branch-label">✗ No — Declined</span>
-            Manager declines with a reason → employee is notified with the feedback and can resubmit if needed
+            Manager declines with a reason → employee is notified in Teams with the feedback
           </div>
         </div>
       </div>
@@ -293,19 +279,12 @@
       </div>
       <div class="layer-content">
         <div class="steps-row">
-          <div class="step" data-tip="Everything the finance team needs is already filled in and organized">
-            <div class="step-icon-bg">📁</div>
-            <div class="step-num">08</div>
-            <div class="step-title">Reimbursement Record Created</div>
-            <div class="step-desc">A complete reimbursement record is created automatically — expense details, approval trail, and receipt all attached, ready for payment</div>
-            <span class="step-tag" style="border-color:rgba(245,158,11,0.4);color:var(--accent-orange)">Auto-Documented</span>
-          </div>
-          <div class="step" data-tip="The employee doesn't need to follow up — payment is already on the calendar">
+          <div class="step" data-tip="The finance team takes it from here using their standard payment process">
             <div class="step-icon-bg">💳</div>
             <div class="step-num">09</div>
-            <div class="step-title">Payment Scheduled</div>
-            <div class="step-desc">The approved amount is queued for the next payment cycle, with an expected payout date attached to the record</div>
-            <span class="step-tag" style="border-color:rgba(245,158,11,0.4);color:var(--accent-orange)">Auto-Scheduled</span>
+            <div class="step-title">Finance Team Processes Payment</div>
+            <div class="step-desc">The approved request, receipt, and Excel sheet are handed off to the finance team, who process the reimbursement per standard procedure</div>
+            <span class="step-tag" style="border-color:rgba(245,158,11,0.4);color:var(--accent-orange)">Standard Processing</span>
           </div>
         </div>
       </div>
@@ -321,17 +300,17 @@
       </div>
       <div class="layer-content">
         <div class="steps-row">
-          <div class="step" data-tip="A written record lands in the employee's inbox for their own tracking">
+          <div class="step" data-tip="A written record lands in the employee's inbox for their own tracking, already in the format finance uses">
             <div class="step-icon-bg">📧</div>
             <div class="step-num">10</div>
             <div class="step-title">Confirmation Email Sent</div>
-            <div class="step-desc">Employee receives an email confirming the approved amount, expected payment date, and a copy of the receipt for their records</div>
-            <span class="step-tag" style="border-color:rgba(6,182,212,0.4);color:var(--accent-cyan)">Auto Confirmation</span>
+            <div class="step-desc">Employee receives an email confirming the approved amount, with the org-format Excel sheet and a copy of the receipt attached for their records</div>
+            <span class="step-tag" style="border-color:rgba(6,182,212,0.4);color:var(--accent-cyan)">Excel + Receipt Attached</span>
           </div>
           <div class="step" data-tip="A quick heads-up in the same place the request started">
             <div class="step-icon-bg">💬</div>
             <div class="step-num">11</div>
-            <div class="step-title">Status Update in Teams</div>
+            <div class="step-title">Status Update in Teams/Employeeworks</div>
             <div class="step-desc">A short confirmation message is also sent back in the original Teams conversation, so the employee has closure right where they started</div>
             <span class="step-tag" style="border-color:rgba(6,182,212,0.4);color:var(--accent-cyan)">Bot Message</span>
           </div>
@@ -356,13 +335,6 @@
             <div class="step-desc">Moveworks sends a Teams message explaining the request was declined, including the manager's reason and any missing information</div>
             <span class="step-tag" style="border-color:rgba(239,68,68,0.4);color:var(--accent-red)">Clear Feedback</span>
           </div>
-          <div class="step" data-tip="Resubmission is quick because the original details are carried forward">
-            <div class="step-icon-bg">🔄</div>
-            <div class="step-num">13</div>
-            <div class="step-title">Easy Resubmission</div>
-            <div class="step-desc">Employee can update the request — add a missing receipt or business reason — and resubmit in the same conversation, without starting over</div>
-            <span class="step-tag" style="border-color:rgba(239,68,68,0.4);color:var(--accent-red)">One-Step Resubmit</span>
-          </div>
         </div>
       </div>
     </div>
@@ -373,18 +345,18 @@
   <div class="outcome-section">
     <div class="outcome-card deflect">
       <div class="outcome-metric">~70%</div>
-      <div class="outcome-title">Faster Reimbursement Cycle</div>
+      <div class="outcome-title">Faster and Clear Reimbursement Cycle</div>
       <div class="outcome-desc">Requests move from submission to payment scheduling in a single conversation, cutting out forms, portals, and manual follow-up.</div>
     </div>
     <div class="outcome-card speed">
-      <div class="outcome-metric">&lt;1min</div>
+      <div class="outcome-metric">&lt;5min</div>
       <div class="outcome-title">Time to Submit</div>
       <div class="outcome-desc">Employees file a request just by describing the expense and attaching a receipt — vs. filling out a multi-field expense form.</div>
     </div>
     <div class="outcome-card accuracy">
       <div class="outcome-metric">100%</div>
       <div class="outcome-title">Paperless & Traceable</div>
-      <div class="outcome-desc">Every request carries its receipt, approval trail, and payment status automatically — nothing lost, nothing chased down by email.</div>
+      <div class="outcome-desc">Every request carries its receipt, an org-format Excel record, approval trail, and payment status automatically — nothing lost, nothing chased down by email.</div>
     </div>
   </div>
 
