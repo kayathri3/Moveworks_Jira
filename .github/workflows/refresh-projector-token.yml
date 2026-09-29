@@ -1,0 +1,37 @@
+name: Refresh Projector Token
+
+on:
+  schedule:
+    # Daily — well inside the 7-day token lifetime, safe even if a run or two is skipped.
+    - cron: "0 3 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install requests
+
+      - name: Refresh Projector token
+        env:
+          PROJECTOR_TOKEN_URL: ${{ secrets.PROJECTOR_TOKEN_URL }}
+          PROJECTOR_CLIENT_ID: ${{ secrets.PROJECTOR_CLIENT_ID }}
+          PROJECTOR_CLIENT_SECRET: ${{ secrets.PROJECTOR_CLIENT_SECRET }}
+        run: python scripts/refresh_projector_token.py
+
+      - name: Commit updated token
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add token_relay/token_public.json
+          git diff --staged --quiet || git commit -m "chore: refresh Projector token [skip ci]"
+          git push

@@ -1,0 +1,10 @@
+{
+  "access_token": "Bsoh36vTSIhyvUrpBTWDRw==",
+  "token_type": "projector_session_ticket",
+  "expires_in": 604800,
+  "refresh_token": "E2BgYPD6H7qSM-iThGf13tM66UkT-JwLijJzU3WLE_NSkvIrpnW5dvjL3vcAAA",
+  "scope": "allowFullPermissions",
+  "soap_service_authority": "https://secure4.projectorpsa.com",
+  "rest_service_authority": "https://app4.projectorpsa.com",
+  "obtained_at": 1790593379
+}
