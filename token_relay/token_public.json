@@ -1,10 +1,11 @@
 {
-  "access_token": "Bsoh36vTSIhyvUrpBTWDRw==",
+  "access_token": "BrETZ3xSN0+e8u3kEGRm6w==",
   "token_type": "projector_session_ticket",
   "expires_in": 604800,
-  "refresh_token": "E2BgYPD6H7qSM-iThGf13tM66UkT-JwLijJzU3WLE_NSkvIrpnW5dvjL3vcAAA",
+  "refresh_token": "E2BgYKj68_XOt416N0OSmMqUb5SH8DkXFGXmpuoWJ-alJOVXaP80Yfwke98DAA",
   "scope": "allowFullPermissions",
   "soap_service_authority": "https://secure4.projectorpsa.com",
   "rest_service_authority": "https://app4.projectorpsa.com",
-  "obtained_at": 1790593379
+  "messages": null,
+  "obtained_at": 1790662935
 }
