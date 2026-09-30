@@ -121,6 +121,38 @@ Two possible paths were identified to work around the header-only injection limi
 - **Decision:** Proceed with **Path B (self-managed token relay)** as the concrete workaround, since Path A (`/api/v1/*` header-based REST endpoints) is still unconfirmed/returning 302 errors in the sandbox. The relay service ([token_relay_service.py](token_relay_service.py)) was already built and validated locally (including a `127.0.0.1:5000/token` header-auth check).
 - Drafted closing reply to Barkha confirming the workaround plan and intent to file a community feature request.
 
+### Phase 8 — Pivoted from hosted relay to a GitHub-Actions-based relay (no server) and got it fully working end-to-end (2026-09-29)
+- User had no hosting account/payment method available (Azure/Render/Fly.io all required either existing access or a card on file), so the plan changed: **use GitHub itself as the "relay"** instead of deploying [token_relay_service.py](token_relay_service.py) anywhere.
+- Built a new mechanism:
+  - [scripts/refresh_projector_token.py](scripts/refresh_projector_token.py) — refreshes the Projector token via `grant_type=refresh_token` and overwrites [token_relay/token_public.json](token_relay/token_public.json).
+  - [.github/workflows/refresh-projector-token.yml](.github/workflows/refresh-projector-token.yml) — GitHub Actions workflow, scheduled daily (`cron: 0 3 * * *`, well inside the 7-day token lifetime), commits the refreshed token back to the repo.
+  - Seeded [token_relay/token_public.json](token_relay/token_public.json) from a verified-live token before first run.
+- Verified the workflow manually via "Run workflow": first attempt failed (`MissingSchema` — repo secrets `PROJECTOR_TOKEN_URL`/`PROJECTOR_CLIENT_ID`/`PROJECTOR_CLIENT_SECRET` not yet added), second attempt succeeded and committed a freshly rotated token.
+- Created a **fine-grained GitHub PAT** (Contents: Read-only, scoped to this one repo) so Moveworks can read the token file via `GET https://api.github.com/repos/kayathri3/Moveworks_Jira/contents/token_relay/token_public.json` with header `Accept: application/vnd.github.raw+json` — confirmed working via a local curl test (returns raw JSON, not the base64-wrapped GitHub metadata).
+- **Built the Moveworks side in Tool Studio:**
+  - HTTP Action `Get_GitHub_Relay_Token` (No-Auth connector, `Authorization: Bearer <PAT>` + `Accept: application/vnd.github.raw+json` headers) — tested standalone, returns `200` with the live token JSON.
+  - Updated `Projector_Get_PM_Projects`: added a proper **Input Argument** `access_token` (previously it only had a manually-typed literal, which was the Phase 5 root cause repeating itself), changed `SessionTicket` query param to `{{access_token}}`, and switched its connector from the broken `Projector_Sandbox_2` OAuth2 connector to a **new No-Auth connector** (the OAuth2 connector was still auto-injecting a stale/broken `Authorization` header even though it was unused, causing the same `unauthenticated` error page).
+  - Created **Compound Action `Get_PM_Projects_With_Relay_Token`** (description: *"Fetches a live Projector OAuth token from the GitHub relay, then calls Projector's PM Projects report to return active project details (name, SFDC code, PM, client, end date) for Jira allocation requests — no manual token entry needed."*) with two steps: `get_github_relay_token` (Output Key `relay_token_result`) → `projector_get_pm_projects` (Data Mapper: `access_token: relay_token_result.access_token`).
+- **Debugging along the way** (useful lessons for next time):
+  - Individual HTTP Actions tested standalone can't resolve cross-step `{{step.output}}` references — that only resolves when run as part of a Compound Action.
+  - Compound Action Data Mapper is literal YAML — `key:value` (no space) fails with `ORCHESTRATION_STUDIO_INVALID_SYNTAX_ERROR`; needs `key: value`.
+  - Compound Action descriptions are capped at 256 characters.
+  - Publishing matters: a Compound Action can run against a **stale published version** of a referenced Tool even after the Tool's draft was edited — must **Publish** the Tool after each fix.
+  - `Projector_Sandbox_2`'s OAuth2 refresh broke separately (`invalid_grant: Refresh Token not Found`) because it and the new GitHub-Actions refresh cycle both draw from Projector's shared, limited pool of concurrent OAuth connections for the same `client_id` (the `OauthConnectionsCulledWarning` seen back in Phase 6) — they evict each other. Since this flow no longer needs `Projector_Sandbox_2` at all, the plan is to disconnect/remove it once confirmed unused elsewhere.
+- **Confirmed fully working end-to-end** (2026-09-29 13:20 UTC run): Compound Action returned real rows — `ProjectName`, `ProjectManager`, `ProjectCode`, `ClientName`, `ProjectEndDate` for Cprime Internal, Cprime West/East/Central, and several employee/intern projects — with zero manual token entry anywhere in the chain.
+- Sent final short thank-you reply to Barkha closing out ticket CS9539089.
+
+### Phase 9 — Analysis of the live plugin flow and remaining build plan (2026-09-29)
+- Process analysed: `Jira ticketing process - 2` (V3 published). Top-level Policy with 2 cases:
+  - Software request case: `get_jira_account_id` → `get_user_manager` → `jira_search_existing_tickets` → Policy on `data.add_comments` (`approve_reject_action`) → `create_installation_request` → `get_jira_account_id` → `add_approver_to_ticket` → `notify_managers_jira` → Exit.
+  - `data.request_type == "Allocations"` case: Content (rules text) → `Jira_Create_allocations_request` (consent required, Output Key `allocation_request_data`) → Content (success message) → Exit. Default case: "Sorry, your request cannot be processed. Please contact support".
+- `Jira_Create_allocations_request` required slots: `allocation_data`, `summary`, `priority`, `region`, `due_date`, `sfdc`, `client_name`; data mapper also passes `requested_for: meta_info.user.email_addr`.
+- Slot `allocation_data` is a plain `string`; its description already lists the mandatory fields per request type (New: full name, hours/week, rate/hour, start, end; Extension: full name, hours/week, start, end; Removal: full name, remove-from, remove-until), resources comma-separated. Mandatory-field checking therefore relies on this description — to be reinforced with explicit "ask for missing data, do not proceed" wording.
+- Today `client_name`, `sfdc`, `due_date`, `priority`, `summary` are all asked from the user; the enhancement must fill them from Projector (client, SFDC = `ProjectCode`, project end date) and auto-calculate priority/summary.
+- The action's response schema shows `{}` — the Jira ticket portal-link field name is unknown until the action is run once; needed for the success message ("only provide portal link").
+- **Known gap:** the Projector report is `For Entire Organization` (all projects, ~118 KB), not filtered to the logged-in PM; `ProjectManager` is formatted `Name (EmployeeID)`. A script/filter step is needed to match the user to their projects.
+- Required success message: Ticket (portal link only), Summary, Client name, Region, Priority, Due date, SFDC Opportunity Code, Allocation details.
+
 ---
 
 ## 4. Current Status / Blockers
@@ -130,14 +162,20 @@ Two possible paths were identified to work around the header-only injection limi
 | Projector OAuth "Custom Grant Type" fix | ✅ Confirmed working (Callback Request Successful) |
 | Legacy report endpoint (`/report/code/pm_projects`) via Postman | ✅ Returns correct data with manual token |
 | Moveworks HTTP Action auto-injecting token into `SessionTicket` query param | ❌ Confirmed unsupported by Moveworks support — official platform limitation, logged as a feature request |
-| Path A (header-based `/api/v1/projects`) | ⚠️ Untested/unconfirmed — currently returns 302 redirect to error page in sandbox |
-| Path B (self-managed refresh via relay service) | ✅ [token_relay_service.py](token_relay_service.py) rebuilt + verified locally (401 on bad key, 200 with valid token via [token_store.json](token_store.json) seeded from a fresh [go.py](go.py) run — `refresh_token` confirmed present, `expires_in: 604800`); **not yet deployed** |
-| Moveworks support ticket | CS9539089 — closed out on the query-param injection question; workaround now owned internally |
+| Path A (header-based `/api/v1/projects`) | ⚠️ Untested/unconfirmed — currently returns 302 redirect to error page in sandbox; abandoned in favor of Path B |
+| Path B, hosted Flask relay ([token_relay_service.py](token_relay_service.py)) | ⚠️ Superseded — no hosting/payment method available (Azure/Render/Fly.io all blocked); replaced by the GitHub Actions-based relay below |
+| **Path B, final: GitHub Actions relay** ([.github/workflows/refresh-projector-token.yml](.github/workflows/refresh-projector-token.yml) + [token_relay/token_public.json](token_relay/token_public.json)) | ✅ **Live and working** — daily cron refresh confirmed committing new tokens; Moveworks reads the file via GitHub Contents API with a fine-grained PAT |
+| Moveworks Compound Action `Get_PM_Projects_With_Relay_Token` | ✅ **Confirmed working end-to-end** (2026-09-29) — returns real project rows (name, PM, code, client, end date) with zero manual token entry |
+| Moveworks support ticket | CS9539089 — closed out with a brief thank-you reply to Barkha |
+| `Projector_Sandbox_2` OAuth2 connector | No longer needed by this flow; broke separately due to shared OAuth-grant-pool contention with the GitHub refresh cycle — pending confirmation it's unused elsewhere, then to be disconnected |
+| Fine-grained GitHub PAT used by `Get_GitHub_Relay_Token` | ⚠️ Expires **Oct 29, 2026** — plan is to replace it with a **classic PAT (No expiration, `repo` scope)** for a true "set and forget" setup |
 
 ## 5. Next Steps
 
-1. Send the closing reply to Barkha confirming the workaround plan (drafted above) and, optionally, file the community ideas forum feature request for query-parameter token injection.
-2. Deploy [token_relay_service.py](token_relay_service.py) to a publicly reachable HTTPS host (Azure App Service/Function, VM, Render, etc.) with env vars `PROJECTOR_TOKEN_URL`, `PROJECTOR_CLIENT_ID`, `PROJECTOR_CLIENT_SECRET`, `RELAY_API_KEY`, and persist [token_store.json](token_store.json) alongside it. Run behind a production WSGI server (gunicorn/waitress), not the Flask dev server.
-3. Configure Moveworks Agent Studio: store `relay_api_key`/`relay_base_url` as secrets, add the "Get Relay Access Token" HTTP Action before "Get PM Projects", and wire `SessionTicket` to reference its output.
-4. (Optional fallback) Separately confirm with Moveworks whether a writable Data Table exists that could persist a rotating `refresh_token` natively — would simplify things if available, but is not a blocker for proceeding now.
-5. Once the relay is live and the flow works end-to-end, capture real screenshots to replace the "Live Demo" placeholder in [Allocation_Request_Enhanced.html](Allocation_Request_Enhanced.html).
+1. ~~Send the closing reply to Barkha~~ — done.
+2. ~~Deploy the relay~~ — done via GitHub Actions instead of a hosted server.
+3. ~~Configure the Moveworks HTTP Actions + Compound Action~~ — done and verified working.
+4. **Replace the fine-grained PAT with a non-expiring classic PAT** (`repo` scope) in `Get_GitHub_Relay_Token`'s Authorization header, so this never needs manual renewal.
+5. **Wire `Get_PM_Projects_With_Relay_Token` into the Allocations case of `Jira ticketing process - 2`** (before `Jira_Create_allocations_request`), then: filter rows to the logged-in PM, let the user pick a project, map `client_name`/`sfdc`/`due_date` from it, auto-calc `priority`/`summary` (script action), drop those slots from the required list, and rebuild the success message with only the portal link. Also reinforce the `allocation_data` slot description with "ask for missing mandatory fields; do not proceed".
+6. Confirm `Projector_Sandbox_2` is unused elsewhere in the plugin, then disconnect/remove it to stop the OAuth-grant-pool contention with the GitHub refresh cycle.
+7. Once wired into the live flow, capture real screenshots to replace the "Live Demo" placeholder in [Allocation_Request_Enhanced.html](Allocation_Request_Enhanced.html).
